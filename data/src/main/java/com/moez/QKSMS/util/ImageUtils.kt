@@ -20,12 +20,15 @@ package dev.octoshrimpy.quik.util
 
 import android.content.Context
 import android.content.res.AssetFileDescriptor
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
 import dev.octoshrimpy.quik.model.Attachment
 import java.io.ByteArrayOutputStream
+import java.io.Closeable
 
 object ImageUtils {
 
@@ -60,22 +63,87 @@ object ImageUtils {
             .get()
     }
 
-    fun getScaledImageWithQuality(
-        context: Context,
-        uri: Uri,
-        maxWidth: Int,
-        maxHeight: Int,
-        targetBytes: Int
-    ): ByteArray {
-        var result = getScaledImage(context, uri, maxWidth, maxHeight, 90)
-        if (result.size <= targetBytes) return result
-        // If the image is too large, then try to scale it down
-        // then return when we are within targetBytes
-        for (quality in 80 downTo 40 step 10) {
-            result = getScaledImage(context, uri, maxWidth, maxHeight, quality)
-            if (result.size <= targetBytes) return result
+    /**
+     * Decodes an image once and re-encodes it from memory at whatever size and quality the
+     * caller asks for.
+     *
+     * Compression searches for a size that fits under the carrier's limit, so it encodes the
+     * same image many times. Going through [getScaledImage] for each attempt re-read and
+     * re-decoded the source file every time, and decoding is by far the expensive part. Callers
+     * should [open] once per attachment and reuse the result for every attempt.
+     *
+     * Close it when done so the decoded bitmap can be reclaimed.
+     */
+    class ScaledImageEncoder private constructor(private val source: Bitmap) : Closeable {
+
+        val width: Int get() = source.width
+        val height: Int get() = source.height
+
+        fun encode(width: Int, height: Int, quality: Int = 90): ByteArray {
+            val target = if (width == source.width && height == source.height) source
+            else Bitmap.createScaledBitmap(source, width, height, true)
+
+            val out = ByteArrayOutputStream()
+            target.compress(Bitmap.CompressFormat.JPEG, quality, out)
+            if (target !== source) target.recycle()
+            return out.toByteArray()
         }
-        return result
+
+        /**
+         * Encode at [width]x[height], dropping quality until the result fits [targetBytes].
+         * Returns the smallest attempt if nothing fits, so the caller still has something to send.
+         */
+        fun encodeWithinBytes(width: Int, height: Int, targetBytes: Int): ByteArray {
+            var result = encode(width, height, 90)
+            if (result.size <= targetBytes) return result
+            for (quality in 80 downTo 40 step 10) {
+                result = encode(width, height, quality)
+                if (result.size <= targetBytes) return result
+            }
+            return result
+        }
+
+        override fun close() = source.recycle()
+
+        companion object {
+            /**
+             * Returns null when the image cannot be decoded, so callers can fall back rather than
+             * dividing by a zero dimension.
+             */
+            fun open(context: Context, uri: Uri, targetWidth: Int, targetHeight: Int): ScaledImageEncoder? {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, bounds)
+                }
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+                // Decode no smaller than the largest size we'll be asked for, so re-encoding
+                // never has to upscale, but no larger than necessary either.
+                val opts = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight)
+                }
+                // With no carrier cap the decode target is the original size, which on a modern
+                // camera can be hundreds of megabytes. Returning null lets the caller fall back
+                // to Glide, which streams rather than holding the whole bitmap.
+                val bitmap = try {
+                    context.contentResolver.openInputStream(uri)?.use {
+                        BitmapFactory.decodeStream(it, null, opts)
+                    }
+                } catch (e: OutOfMemoryError) {
+                    null
+                } ?: return null
+
+                return ScaledImageEncoder(bitmap)
+            }
+
+            private fun sampleSizeFor(width: Int, height: Int, targetWidth: Int, targetHeight: Int): Int {
+                var sample = 1
+                while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) {
+                    sample *= 2
+                }
+                return sample
+            }
+        }
     }
 
     /**

@@ -604,19 +604,34 @@ open class MessageRepositoryImpl @Inject constructor(
                 }
                 val origWidth = opts.outWidth
                 val origHeight = opts.outHeight
+
+                // Bounds decoding fails on formats BitmapFactory can't read. Without real
+                // dimensions the aspect ratio is 0/0, so hand off to Glide rather than divide by it.
+                if (origWidth <= 0 || origHeight <= 0) {
+                    Timber.w("Could not read image bounds, falling back to Glide scaling")
+                    return ImageUtils.getScaledImage(context, attachment.uri, maxWidth, maxHeight)
+                }
+
                 val aspectRatio = origWidth.toFloat() / origHeight.toFloat()
 
                 val maxWidthByHeight = if (maxHeight != Int.MAX_VALUE) {
                     minOf((maxHeight * aspectRatio.toDouble()).toInt(), origWidth)
                 } else origWidth
-                val searchHi = minOf(origWidth, maxWidth, maxWidthByHeight).coerceAtLeast(100)
+                // Never above the original or the carrier's ceiling: raising this to a floor of
+                // 100 would upscale images smaller than that and inflate the payload.
+                val searchHi = minOf(origWidth, maxWidth, maxWidthByHeight).coerceAtLeast(1)
 
-                var lo = minOf(100, searchHi)
+                var lo = 1
                 var hi = searchHi
                 var bestBytes: ByteArray? = null
                 var attempt = 0
 
-                if (isGif) {
+                // Last-resort size when nothing in the search fit. Bounded by searchHi so an
+                // image already smaller than this is never upscaled back up.
+                val fallbackWidth = minOf(100, searchHi).coerceAtLeast(1)
+                val fallbackHeight = (fallbackWidth / aspectRatio).toInt().coerceAtLeast(1)
+
+                val result = if (isGif) {
                     bestBytes = gifCompressor.compressGif(
                         context,
                         attachment,
@@ -624,54 +639,61 @@ open class MessageRepositoryImpl @Inject constructor(
                         origWidth,
                         aspectRatio
                     )
-                    attachment.releaseResourceBytes()
-                } else {
-                    while (lo <= hi) {
-                        val midWidth = (lo + hi) / 2
-                        val midHeight = (midWidth / aspectRatio).toInt().coerceAtLeast(1)
-                        attempt++
-                        val candidate = ImageUtils.getScaledImage(context, attachment.uri, midWidth, midHeight)
-                        Timber.d(
-                            "Compression attempt $attempt: ${
-                                candidate.size / 1024
-                            }/${maxBytes / 1024}Kb ($origWidth*$origHeight -> $midWidth*$midHeight)"
-                        )
-                        if (candidate.size <= maxBytes) {
-                            bestBytes = candidate
-                            lo = midWidth + 1
-                        } else {
-                            hi = midWidth - 1
-                        }
 
-                        // release the attachment hold on the image bytes so the GC can reclaim
-                        attachment.releaseResourceBytes()
-                    }
-                }
-
-                val result = bestBytes ?: run {
-                    val minHeight = (100 / aspectRatio).toInt().coerceAtLeast(1)
-                    if (isGif) {
-                        ImageUtils.getScaledGif(context, attachment.uri, 100, minHeight).also {
+                    bestBytes ?: ImageUtils
+                        .getScaledGif(context, attachment.uri, fallbackWidth, fallbackHeight)
+                        .also {
                             Timber.w(
                                 "GIF too large after compression: ${
                                     it.size / 1024
                                 }Kb target ${maxBytes / 1024}Kb, sending anyway"
                             )
                         }
-                    } else {
-                        ImageUtils.getScaledImageWithQuality(
-                            context, attachment.uri, 100, minHeight, maxBytes
-                        ).also {
-                            if (it.size > maxBytes) {
-                                Timber.w(
-                                    "Failed to compress image: ${
-                                        it.size / 1024
-                                    }Kb target ${maxBytes / 1024}Kb, sending anyway"
-                                )
+                } else {
+                    val searchHiHeight = (searchHi / aspectRatio).toInt().coerceAtLeast(1)
+                    // Decode once for the whole search. Every attempt below re-encodes that
+                    // bitmap from memory instead of re-reading and re-decoding the source file.
+                    val encoder = ImageUtils.ScaledImageEncoder
+                        .open(context, attachment.uri, searchHi, searchHiHeight)
+
+                    if (encoder == null) {
+                        Timber.w("Could not decode image, falling back to Glide scaling")
+                        ImageUtils.getScaledImage(context, attachment.uri, maxWidth, maxHeight)
+                    } else encoder.use {
+                        while (lo <= hi) {
+                            val midWidth = (lo + hi) / 2
+                            val midHeight = (midWidth / aspectRatio).toInt().coerceAtLeast(1)
+                            attempt++
+                            val candidate = encoder.encode(midWidth, midHeight)
+                            Timber.d(
+                                "Compression attempt $attempt: ${
+                                    candidate.size / 1024
+                                }/${maxBytes / 1024}Kb ($origWidth*$origHeight -> $midWidth*$midHeight)"
+                            )
+                            if (candidate.size <= maxBytes) {
+                                bestBytes = candidate
+                                lo = midWidth + 1
+                            } else {
+                                hi = midWidth - 1
                             }
                         }
+
+                        bestBytes ?: encoder
+                            .encodeWithinBytes(fallbackWidth, fallbackHeight, maxBytes)
+                            .also {
+                                if (it.size > maxBytes) {
+                                    Timber.w(
+                                        "Failed to compress image: ${
+                                            it.size / 1024
+                                        }Kb target ${maxBytes / 1024}Kb, sending anyway"
+                                    )
+                                }
+                            }
                     }
                 }
+
+                // release the attachment hold on the image bytes so the GC can reclaim
+                attachment.releaseResourceBytes()
 
                 Timber.v(
                     "Compressed to ${result.size / 1024}Kb with target ${
