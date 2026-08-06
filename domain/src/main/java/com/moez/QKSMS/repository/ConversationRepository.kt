@@ -27,7 +27,11 @@ import io.realm.RealmResults
 
 interface ConversationRepository {
 
-    fun getConversations(unreadAtTop: Boolean, archived: Boolean = false): RealmResults<Conversation>
+    fun getConversations(
+        unreadAtTop: Boolean,
+        archived: Boolean = false,
+        incognito: Boolean = false
+    ): RealmResults<Conversation>
 
     fun getConversationsSnapshot(unreadAtTop: Boolean): List<Conversation>
 
@@ -88,6 +92,10 @@ interface ConversationRepository {
     fun markPinned(vararg threadIds: Long)
 
     fun markUnpinned(vararg threadIds: Long)
+
+    fun markIncognito(vararg threadIds: Long)
+
+    fun markUnincognito(vararg threadIds: Long)
 
     fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?)
 

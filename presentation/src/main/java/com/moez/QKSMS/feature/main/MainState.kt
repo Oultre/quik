@@ -44,7 +44,9 @@ data class Inbox(
     val markPinned: Boolean = true,
     val markRead: Boolean = false,
     val data: RealmResults<Conversation>? = null,
-    val selected: Int = 0
+    val selected: Int = 0,
+    // Backchannel: when true, this is the hidden ("incognito") view of the inbox
+    val incognito: Boolean = false
 ) : MainPage()
 
 data class Searching(

@@ -55,10 +55,16 @@ class Navigator @Inject constructor(
         startActivity(Intent(context, MainActivity::class.java))
     }
 
-    fun showCompose(body: String? = null, attachments: List<Uri>? = null, mode: String? = null) {
+    fun showCompose(
+        body: String? = null,
+        attachments: List<Uri>? = null,
+        mode: String? = null,
+        incognito: Boolean = false
+    ) {
         val intent = Intent(context, ComposeActivity::class.java)
         intent.putExtra(Intent.EXTRA_TEXT, body)
         intent.putExtra("mode", mode)
+        intent.putExtra("incognito", incognito)
 
         attachments
             ?.takeIf { it.isNotEmpty() }

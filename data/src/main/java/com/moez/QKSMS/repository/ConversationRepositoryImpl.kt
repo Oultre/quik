@@ -56,7 +56,8 @@ class ConversationRepositoryImpl @Inject constructor(
     private fun getConversationsBase(
         realm: Realm,
         unreadAtTop: Boolean,
-        archived: Boolean
+        archived: Boolean,
+        incognito: Boolean
     ): RealmQuery<Conversation> {
         val sortOrder = mutableListOf("pinned", "draft", "lastMessage.date")
         val sortDirections = mutableListOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
@@ -71,6 +72,7 @@ class ConversationRepositoryImpl @Inject constructor(
             .notEqualTo("id", 0L)
             .equalTo("archived", archived)
             .equalTo("blocked", false)
+            .equalTo("incognito", incognito)
             .isNotEmpty("recipients")
             .beginGroup()
             .isNotNull("lastMessage")
@@ -82,14 +84,15 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override fun getConversations(
         unreadAtTop: Boolean,
-        archived: Boolean
+        archived: Boolean,
+        incognito: Boolean
     ): RealmResults<Conversation> =
-        getConversationsBase(Realm.getDefaultInstance(), unreadAtTop, archived)
+        getConversationsBase(Realm.getDefaultInstance(), unreadAtTop, archived, incognito)
             .findAllAsync()
 
     override fun getConversationsSnapshot(unreadAtTop: Boolean): List<Conversation> =
         Realm.getDefaultInstance().use { realm ->
-            getConversationsBase(realm, unreadAtTop, false)
+            getConversationsBase(realm, unreadAtTop, false, false)
                 .findAll()
                 .let(realm::copyFromRealm)
         }
@@ -424,6 +427,24 @@ class ConversationRepositoryImpl @Inject constructor(
                 .findAll()
 
             realm.executeTransaction { conversations.forEach { it.pinned = false } }
+        }
+
+    override fun markIncognito(vararg threadIds: Long) =
+        Realm.getDefaultInstance().use { realm ->
+            val conversations = realm.where(Conversation::class.java)
+                .anyOf("id", threadIds)
+                .findAll()
+
+            realm.executeTransaction { conversations.forEach { it.incognito = true } }
+        }
+
+    override fun markUnincognito(vararg threadIds: Long) =
+        Realm.getDefaultInstance().use { realm ->
+            val conversations = realm.where(Conversation::class.java)
+                .anyOf("id", threadIds)
+                .findAll()
+
+            realm.executeTransaction { conversations.forEach { it.incognito = false } }
         }
 
     override fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?) =

@@ -39,6 +39,7 @@ import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.google.android.material.snackbar.Snackbar
 import com.jakewharton.rxbinding2.view.clicks
+import com.jakewharton.rxbinding2.view.longClicks
 import com.jakewharton.rxbinding2.widget.textChanges
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
@@ -89,6 +90,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override val activityResumedIntent: Subject<Boolean> = PublishSubject.create()
     override val queryChangedIntent by lazy { binding.toolbarSearch.textChanges() }
     override val composeIntent by lazy { binding.compose.clicks() }
+    override val composeIncognitoIntent by lazy { binding.compose.longClicks() }
     override val drawerToggledIntent: Observable<Boolean> by lazy {
         binding.drawerLayout.drawerOpen(Gravity.START)
     }
@@ -242,6 +244,7 @@ class MainActivity : QkThemedActivity(), MainView {
         }
 
         binding.toolbarSearch.setVisible(state.page is Inbox &&
+                !state.page.incognito &&
                 state.page.selected == 0 ||
                 state.page is Searching
         )
@@ -251,9 +254,13 @@ class MainActivity : QkThemedActivity(), MainView {
             findItem(R.id.select_all)?.isVisible =
                 (conversationsAdapter.itemCount > 1) && selectedConversations != 0
             findItem(R.id.archive)?.isVisible =
-                state.page is Inbox && selectedConversations != 0
+                state.page is Inbox && !state.page.incognito && selectedConversations != 0
             findItem(R.id.unarchive)?.isVisible =
                 state.page is Archived && selectedConversations != 0
+            findItem(R.id.incognito)?.isVisible =
+                state.page is Inbox && !state.page.incognito && selectedConversations != 0
+            findItem(R.id.unincognito)?.isVisible =
+                state.page is Inbox && state.page.incognito && selectedConversations != 0
             findItem(R.id.delete)?.isVisible = selectedConversations != 0
             findItem(R.id.add)?.isVisible = addContact && selectedConversations != 0
             findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0
@@ -281,13 +288,21 @@ class MainActivity : QkThemedActivity(), MainView {
 
         when (state.page) {
             is Inbox -> {
-                showBackButton(state.page.selected > 0)
-                title = getString(R.string.main_title_selected, state.page.selected)
+                showBackButton(state.page.selected > 0 || state.page.incognito)
+                title = when {
+                    state.page.selected != 0 ->
+                        getString(R.string.main_title_selected, state.page.selected)
+                    state.page.incognito -> getString(R.string.title_incognito)
+                    else -> getString(R.string.main_title_selected, state.page.selected)
+                }
                 if (binding.recyclerView.adapter !== conversationsAdapter)
                     binding.recyclerView.adapter = conversationsAdapter
                 conversationsAdapter.updateData(state.page.data)
                 itemTouchHelper.attachToRecyclerView(binding.recyclerView)
-                binding.empty.setText(R.string.inbox_empty_text)
+                binding.empty.setText(
+                    if (state.page.incognito) R.string.incognito_empty_text
+                    else R.string.inbox_empty_text
+                )
             }
 
             is Searching -> {

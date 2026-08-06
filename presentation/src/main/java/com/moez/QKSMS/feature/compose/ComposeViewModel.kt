@@ -105,6 +105,7 @@ class ComposeViewModel @Inject constructor(
     @Named("text") private val sharedText: String,
     @Named("attachments") val sharedAttachments: List<Attachment>,
     @Named("mode") private val mode: String,
+    @Named("incognito") private val incognito: Boolean,
     @Named("subscriptionId") val sharedSubscriptionId: Int,
     @Named("sendAsGroup") val sharedSendAsGroup: Boolean?,
     @Named("scheduleDateTime") val sharedScheduledDateTime: Long,
@@ -1241,6 +1242,11 @@ class ComposeViewModel @Inject constructor(
                         )
                     }
                 }
+
+                // Backchannel: if this compose session was started as a new hidden message,
+                // place the resulting thread in the incognito box.
+                if (incognito && conversationId != 0L)
+                    conversationRepo.markIncognito(conversationId)
 
                 // clear the current message ready for new message composition
                 view.clearCurrentMessageIntent.onNext(false)

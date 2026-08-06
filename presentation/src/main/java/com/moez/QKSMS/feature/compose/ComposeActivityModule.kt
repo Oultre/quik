@@ -103,6 +103,11 @@ class ComposeActivityModule {
         activity.intent.getStringExtra("mode") ?: ""
 
     @Provides
+    @Named("incognito")
+    fun provideIncognito(activity: ComposeActivity): Boolean =
+        activity.intent.getBooleanExtra("incognito", false)
+
+    @Provides
     @Named("subscriptionId")
     fun provideSubscriptionId(activity: ComposeActivity): Int =
         activity.intent.getIntExtra("subscriptionId", -1)

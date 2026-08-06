@@ -37,7 +37,7 @@ class QkRealmMigration @Inject constructor(
 ) : RealmMigration {
 
     companion object {
-        const val SCHEMA_VERSION: Long = 15
+        const val SCHEMA_VERSION: Long = 16
     }
 
     @SuppressLint("ApplySharedPref")
@@ -298,6 +298,17 @@ class QkRealmMigration @Inject constructor(
             }
 
             version ++
+        }
+
+        if (version == 15L) {
+            // Backchannel: hidden ("incognito") conversation box. Purely a visibility
+            // filter on the inbox list; does not affect notifications.
+            if (realm.schema.get("Conversation")?.hasField("incognito") == false) {
+                realm.schema.get("Conversation")
+                    ?.addField("incognito", Boolean::class.java, FieldAttribute.REQUIRED, FieldAttribute.INDEXED)
+            }
+
+            version++
         }
 
         check(version >= SCHEMA_VERSION) {

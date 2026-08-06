@@ -29,9 +29,11 @@ import dev.octoshrimpy.quik.extensions.mapNotNull
 import dev.octoshrimpy.quik.interactor.DeleteConversations
 import dev.octoshrimpy.quik.interactor.MarkAllSeen
 import dev.octoshrimpy.quik.interactor.MarkArchived
+import dev.octoshrimpy.quik.interactor.MarkIncognito
 import dev.octoshrimpy.quik.interactor.MarkPinned
 import dev.octoshrimpy.quik.interactor.MarkRead
 import dev.octoshrimpy.quik.interactor.MarkUnarchived
+import dev.octoshrimpy.quik.interactor.MarkUnincognito
 import dev.octoshrimpy.quik.interactor.MarkUnpinned
 import dev.octoshrimpy.quik.interactor.MarkUnread
 import dev.octoshrimpy.quik.interactor.MigratePreferences
@@ -73,9 +75,11 @@ class MainViewModel @Inject constructor(
     private val messageRepo: MessageRepository,
     private val deleteConversations: DeleteConversations,
     private val markArchived: MarkArchived,
+    private val markIncognito: MarkIncognito,
     private val markPinned: MarkPinned,
     private val markRead: MarkRead,
     private val markUnarchived: MarkUnarchived,
+    private val markUnincognito: MarkUnincognito,
     private val markUnpinned: MarkUnpinned,
     private val markUnread: MarkUnread,
     private val scheduledMessageRepo: ScheduledMessageRepository,
@@ -97,7 +101,9 @@ class MainViewModel @Inject constructor(
         disposables += deleteConversations
         disposables += markAllSeen
         disposables += markArchived
+        disposables += markIncognito
         disposables += markUnarchived
+        disposables += markUnincognito
         disposables += migratePreferences
         disposables += syncContacts
         disposables += syncMessages
@@ -175,7 +181,12 @@ class MainViewModel @Inject constructor(
             .withLatestFrom(state) { _, state ->
                 if (state.page is Inbox)
                     newState {
-                        copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get())))
+                        copy(page = Inbox(
+                            incognito = state.page.incognito,
+                            data = conversationRepo.getConversations(
+                                prefs.unreadAtTop.get(), false, state.page.incognito
+                            )
+                        ))
                     }
                 else if (state.page is Archived)
                     newState {
@@ -303,8 +314,31 @@ class MainViewModel @Inject constructor(
                 .subscribe()
 
         view.composeIntent
+                .withLatestFrom(state) { _, state -> state }
                 .autoDisposable(view.scope())
-                .subscribe { navigator.showCompose() }
+                .subscribe { state ->
+                    // Backchannel: while viewing the hidden list, the FAB starts a new
+                    // hidden message (the created thread is placed in the incognito box).
+                    navigator.showCompose(incognito = (state.page as? Inbox)?.incognito == true)
+                }
+
+        // Backchannel: long-pressing the compose FAB re-queries the same inbox filtered
+        // to hidden threads (does not open a separate screen).
+        view.composeIncognitoIntent
+                .withLatestFrom(state) { _, state -> state }
+                .autoDisposable(view.scope())
+                .subscribe { state ->
+                    if (state.page is Inbox && !state.page.incognito) {
+                        newState {
+                            copy(page = Inbox(
+                                incognito = true,
+                                data = conversationRepo.getConversations(
+                                    prefs.unreadAtTop.get(), false, true
+                                )
+                            ))
+                        }
+                    }
+                }
 
         view.homeIntent
                 .withLatestFrom(state) { _, state ->
@@ -312,6 +346,8 @@ class MainViewModel @Inject constructor(
                         state.page is Searching -> view.clearSearch()
                         state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                         state.page is Archived && state.page.selected > 0 -> view.clearSelection()
+                        state.page is Inbox && state.page.incognito ->
+                            newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
 
                         else -> newState { copy(drawerOpen = true) }
                     }
@@ -336,6 +372,9 @@ class MainViewModel @Inject constructor(
                             state.page is Searching -> view.clearSearch()
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
+                            state.page is Inbox && state.page.incognito -> {
+                                newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
+                            }
                             state.page !is Inbox -> {
                                 newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                             }
@@ -426,6 +465,24 @@ class MainViewModel @Inject constructor(
                 .filter { itemId -> itemId == R.id.unpin }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
                     markUnpinned.execute(conversations.toList())
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.incognito }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    markIncognito.execute(conversations.toList())
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.unincognito }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    markUnincognito.execute(conversations.toList())
                     view.clearSelection()
                 }
                 .autoDisposable(view.scope())

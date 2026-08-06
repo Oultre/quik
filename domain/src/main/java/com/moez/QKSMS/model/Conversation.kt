@@ -28,6 +28,7 @@ open class Conversation(
     @Index var archived: Boolean = false,
     @Index var blocked: Boolean = false,
     @Index var pinned: Boolean = false,
+    @Index var incognito: Boolean = false,
     var recipients: RealmList<Recipient> = RealmList(),
     var lastMessage: Message? = null,
     var draft: String = "",
