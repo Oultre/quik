@@ -43,6 +43,8 @@ data class Inbox(
     val addContact: Boolean = false,
     val markPinned: Boolean = true,
     val markRead: Boolean = false,
+    // Backchannel: when true, show the "Mute" action for the selection; else "Unmute"
+    val markMute: Boolean = true,
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0,
     // Backchannel: when true, this is the hidden ("incognito") view of the inbox
@@ -58,6 +60,7 @@ data class Archived(
     val addContact: Boolean = false,
     val markPinned: Boolean = true,
     val markRead: Boolean = false,
+    val markMute: Boolean = true,
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0
 ) : MainPage()

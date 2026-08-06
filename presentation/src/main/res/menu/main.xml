@@ -84,6 +84,20 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/mute"
+        android:icon="@drawable/ic_notifications_off_black_24dp"
+        android:title="@string/main_menu_mute"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/unmute"
+        android:icon="@drawable/ic_notifications_black_24dp"
+        android:title="@string/main_menu_unmute"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/read"
         android:icon="@drawable/ic_drafts_black_24dp"
         android:title="@string/main_menu_read"

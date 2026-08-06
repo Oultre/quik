@@ -188,6 +188,11 @@ class Preferences @Inject constructor(
         }
     }
 
+    // Backchannel: remembers a thread's notification on/off state from just before it was
+    // moved into the hidden box, so unhiding can restore it (auto-mute on hide).
+    fun notificationsPreIncognito(threadId: Long): Preference<Boolean> =
+        rxPrefs.getBoolean("notifications_pre_incognito_$threadId", true)
+
     fun notificationPreviews(threadId: Long = 0): Preference<Int> {
         val default = rxPrefs.getInteger("notification_previews", 0)
 

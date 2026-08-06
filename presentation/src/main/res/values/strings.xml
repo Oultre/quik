@@ -54,6 +54,8 @@
     <string name="main_menu_unarchive">Unarchive</string>
     <string name="main_menu_incognito">Hide</string>
     <string name="main_menu_unincognito">Unhide</string>
+    <string name="main_menu_mute">Mute</string>
+    <string name="main_menu_unmute">Unmute</string>
     <string name="main_menu_delete">Delete</string>
     <string name="main_menu_add_contact">Add to contacts</string>
     <string name="main_menu_pin">Pin to top</string>

@@ -33,6 +33,7 @@ import dev.octoshrimpy.quik.model.Message
 import dev.octoshrimpy.quik.model.Recipient
 import dev.octoshrimpy.quik.model.SearchResult
 import dev.octoshrimpy.quik.util.PhoneNumberUtils
+import dev.octoshrimpy.quik.util.Preferences
 import dev.octoshrimpy.quik.util.tryOrNull
 import io.reactivex.Completable
 import io.reactivex.Observable
@@ -51,7 +52,8 @@ class ConversationRepositoryImpl @Inject constructor(
     private val conversationFilter: ConversationFilter,
     private val cursorToConversation: CursorToConversation,
     private val cursorToRecipient: CursorToRecipient,
-    private val phoneNumberUtils: PhoneNumberUtils
+    private val phoneNumberUtils: PhoneNumberUtils,
+    private val prefs: Preferences
 ) : ConversationRepository {
     private fun getConversationsBase(
         realm: Realm,
@@ -435,6 +437,15 @@ class ConversationRepositoryImpl @Inject constructor(
                 .anyOf("id", threadIds)
                 .findAll()
 
+            // Auto-mute on hide: for each thread newly entering the hidden box, remember its
+            // current notification state, then silence it. Threads already hidden are left as-is
+            // so a re-hide can't clobber the saved state.
+            conversations.filter { !it.incognito }.forEach { conversation ->
+                prefs.notificationsPreIncognito(conversation.id)
+                    .set(prefs.notifications(conversation.id).get())
+                prefs.notifications(conversation.id).set(false)
+            }
+
             realm.executeTransaction { conversations.forEach { it.incognito = true } }
         }
 
@@ -443,6 +454,15 @@ class ConversationRepositoryImpl @Inject constructor(
             val conversations = realm.where(Conversation::class.java)
                 .anyOf("id", threadIds)
                 .findAll()
+
+            // Restore the notification state each thread had before it was hidden.
+            conversations.filter { it.incognito }.forEach { conversation ->
+                val preIncognito = prefs.notificationsPreIncognito(conversation.id)
+                if (preIncognito.isSet) {
+                    prefs.notifications(conversation.id).set(preIncognito.get())
+                    preIncognito.delete()
+                }
+            }
 
             realm.executeTransaction { conversations.forEach { it.incognito = false } }
         }

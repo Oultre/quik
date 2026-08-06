@@ -489,6 +489,24 @@ class MainViewModel @Inject constructor(
                 .subscribe()
 
         view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.mute }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    conversations.forEach { prefs.notifications(it).set(false) }
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.unmute }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    conversations.forEach { prefs.notifications(it).set(true) }
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
                 .filter { itemId -> itemId == R.id.read }
                 .filter { permissionManager.isDefaultSms().also { if (!it) view.requestDefaultSms() } }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
@@ -551,6 +569,8 @@ class MainViewModel @Inject constructor(
                             ?.recipients?.first()
                             ?.takeIf { recipient -> recipient.contact == null } != null
                     val pin = conversations.sumBy { if (it.pinned) -1 else 1 } >= 0
+                    // Backchannel: show "Mute" when most of the selection is still notifying
+                    val mute = conversations.sumBy { if (prefs.notifications(it.id).get()) 1 else -1 } >= 0
                     val read = when (conversations.size) {
                         0    -> false
                         1    -> conversations[0].unread
@@ -560,12 +580,12 @@ class MainViewModel @Inject constructor(
 
                     when (state.page) {
                         is Inbox -> {
-                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, selected = selected)
+                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
                             newState { copy(page = page) }
                         }
 
                         is Archived -> {
-                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, selected = selected)
+                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
                             newState { copy(page = page) }
                         }
 
