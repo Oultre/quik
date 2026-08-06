@@ -25,8 +25,10 @@
     <string name="shortcut_compose_disabled_message">Shortcut disabled</string>
 
     <string name="title_archived">Archived</string>
+    <string name="title_updates">Updates</string>
     <string name="title_incognito">Incognito</string>
     <string name="title_compose_incognito">New hidden message</string>
+    <string name="compose_stt_listening">Listening…</string>
     <string name="title_settings">Settings</string>
     <string name="title_notification_prefs">Notifications</string>
     <string name="title_theme">Theme</string>
@@ -56,6 +58,8 @@
     <string name="main_menu_unincognito">Unhide</string>
     <string name="main_menu_mute">Mute</string>
     <string name="main_menu_unmute">Unmute</string>
+    <string name="main_menu_bundle">Add to Updates</string>
+    <string name="main_menu_unbundle">Move to Inbox</string>
     <string name="main_menu_delete">Delete</string>
     <string name="main_menu_add_contact">Add to contacts</string>
     <string name="main_menu_pin">Pin to top</string>
@@ -76,6 +80,7 @@
     <string name="inbox_search_empty_text">No results</string>
     <string name="archived_empty_text">Your archived conversations will appear here</string>
     <string name="incognito_empty_text">Your hidden conversations will appear here</string>
+    <string name="updates_empty_text">Delivery, promo and mailing-list messages will be grouped here</string>
     <string name="main_fab_cd">Start new conversation</string>
     <string name="main_default_sms_title">Love texting again</string>
     <string name="main_default_sms_message">Make QUIK your default SMS app</string>
@@ -91,6 +96,7 @@
 
     <string name="drawer_inbox">Inbox</string>
     <string name="drawer_archived">Archived</string>
+    <string name="drawer_updates">Updates</string>
     <string name="drawer_scheduled">Scheduled</string>
     <string name="drawer_blocking">Blocking</string>
     <string name="drawer_more">More</string>

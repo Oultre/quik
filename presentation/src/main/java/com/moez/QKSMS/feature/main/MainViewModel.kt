@@ -192,6 +192,12 @@ class MainViewModel @Inject constructor(
                     newState {
                         copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), true)))
                     }
+                else if (state.page is Updates)
+                    newState {
+                        copy(page = Updates(data = conversationRepo.getConversations(
+                            prefs.unreadAtTop.get(), archived = false, incognito = false, bundled = true
+                        )))
+                    }
             }
             .autoDisposable(view.scope())
             .subscribe()
@@ -346,6 +352,7 @@ class MainViewModel @Inject constructor(
                         state.page is Searching -> view.clearSearch()
                         state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                         state.page is Archived && state.page.selected > 0 -> view.clearSelection()
+                        state.page is Updates && state.page.selected > 0 -> view.clearSelection()
                         state.page is Inbox && state.page.incognito ->
                             newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
 
@@ -372,6 +379,7 @@ class MainViewModel @Inject constructor(
                             state.page is Searching -> view.clearSearch()
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
+                            state.page is Updates && state.page.selected > 0 -> view.clearSelection()
                             state.page is Inbox && state.page.incognito -> {
                                 newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                             }
@@ -398,6 +406,7 @@ class MainViewModel @Inject constructor(
                     when (drawerItem) {
                         NavItem.INBOX -> newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                         NavItem.ARCHIVED -> newState { copy(page = Archived(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), true))) }
+                        NavItem.UPDATES -> newState { copy(page = Updates(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), archived = false, incognito = false, bundled = true))) }
                         else -> Unit
                     }
                 }
@@ -498,6 +507,24 @@ class MainViewModel @Inject constructor(
                 .subscribe()
 
         view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.bundle }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    conversationRepo.markBundled(*conversations.toLongArray())
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.unbundle }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    conversationRepo.markUnbundled(*conversations.toLongArray())
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.optionsItemIntent
                 .filter { itemId -> itemId == R.id.unmute }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
                     conversations.forEach { prefs.notifications(it).set(true) }
@@ -585,6 +612,11 @@ class MainViewModel @Inject constructor(
                         }
 
                         is Archived -> {
+                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
+                            newState { copy(page = page) }
+                        }
+
+                        is Updates -> {
                             val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
                             newState { copy(page = page) }
                         }

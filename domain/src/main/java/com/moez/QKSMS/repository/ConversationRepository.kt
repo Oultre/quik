@@ -30,7 +30,8 @@ interface ConversationRepository {
     fun getConversations(
         unreadAtTop: Boolean,
         archived: Boolean = false,
-        incognito: Boolean = false
+        incognito: Boolean = false,
+        bundled: Boolean = false
     ): RealmResults<Conversation>
 
     fun getConversationsSnapshot(unreadAtTop: Boolean): List<Conversation>
@@ -96,6 +97,10 @@ interface ConversationRepository {
     fun markIncognito(vararg threadIds: Long)
 
     fun markUnincognito(vararg threadIds: Long)
+
+    fun markBundled(vararg threadIds: Long)
+
+    fun markUnbundled(vararg threadIds: Long)
 
     fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?)
 

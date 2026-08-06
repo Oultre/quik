@@ -98,6 +98,20 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/bundle"
+        android:icon="@drawable/ic_label_black_24dp"
+        android:title="@string/main_menu_bundle"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/unbundle"
+        android:icon="@drawable/ic_inbox_black_24dp"
+        android:title="@string/main_menu_unbundle"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/read"
         android:icon="@drawable/ic_drafts_black_24dp"
         android:title="@string/main_menu_read"

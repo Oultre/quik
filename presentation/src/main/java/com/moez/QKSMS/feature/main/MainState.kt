@@ -64,3 +64,13 @@ data class Archived(
     val data: RealmResults<Conversation>? = null,
     val selected: Int = 0
 ) : MainPage()
+
+// Backchannel: the combined "Updates" box of bundled (delivery/promo/etc.) conversations
+data class Updates(
+    val addContact: Boolean = false,
+    val markPinned: Boolean = true,
+    val markRead: Boolean = false,
+    val markMute: Boolean = true,
+    val data: RealmResults<Conversation>? = null,
+    val selected: Int = 0
+) : MainPage()

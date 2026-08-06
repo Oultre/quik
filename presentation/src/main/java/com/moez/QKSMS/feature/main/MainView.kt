@@ -59,4 +59,4 @@ interface MainView : QkView<MainState> {
     fun drawerToggled(opened: Boolean)
 }
 
-enum class NavItem { BACK, INBOX, ARCHIVED, BACKUP, SCHEDULED, BLOCKING, MESSAGE_UTILS, SETTINGS, ABOUT, PLUS, HELP, INVITE }
+enum class NavItem { BACK, INBOX, ARCHIVED, UPDATES, BACKUP, SCHEDULED, BLOCKING, MESSAGE_UTILS, SETTINGS, ABOUT, PLUS, HELP, INVITE }

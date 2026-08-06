@@ -100,6 +100,7 @@ class MainActivity : QkThemedActivity(), MainView {
                 backPressedSubject,
                 binding.drawer.inbox.clicks().map { NavItem.INBOX },
                 binding.drawer.archived.clicks().map { NavItem.ARCHIVED },
+                binding.drawer.updates.clicks().map { NavItem.UPDATES },
                 binding.drawer.backup.clicks().map { NavItem.BACKUP },
                 binding.drawer.scheduled.clicks().map { NavItem.SCHEDULED },
                 binding.drawer.blocking.clicks().map { NavItem.BLOCKING },
@@ -187,6 +188,7 @@ class MainActivity : QkThemedActivity(), MainView {
                         .let { tintList ->
                             binding.drawer.inboxIcon.imageTintList = tintList
                             binding.drawer.archivedIcon.imageTintList = tintList
+                            binding.drawer.updatesIcon.imageTintList = tintList
                         }
 
                     // Miscellaneous views
@@ -222,30 +224,35 @@ class MainActivity : QkThemedActivity(), MainView {
         val addContact = when (state.page) {
             is Inbox -> state.page.addContact
             is Archived -> state.page.addContact
+            is Updates -> state.page.addContact
             else -> false
         }
 
         val markPinned = when (state.page) {
             is Inbox -> state.page.markPinned
             is Archived -> state.page.markPinned
+            is Updates -> state.page.markPinned
             else -> true
         }
 
         val markRead = when (state.page) {
             is Inbox -> state.page.markRead
             is Archived -> state.page.markRead
+            is Updates -> state.page.markRead
             else -> true
         }
 
         val markMute = when (state.page) {
             is Inbox -> state.page.markMute
             is Archived -> state.page.markMute
+            is Updates -> state.page.markMute
             else -> true
         }
 
         val selectedConversations = when (state.page) {
             is Inbox -> state.page.selected
             is Archived -> state.page.selected
+            is Updates -> state.page.selected
             else -> 0
         }
 
@@ -277,6 +284,10 @@ class MainActivity : QkThemedActivity(), MainView {
                     selectedConversations > 1
             findItem(R.id.mute)?.isVisible = markMute && selectedConversations != 0
             findItem(R.id.unmute)?.isVisible = !markMute && selectedConversations != 0
+            findItem(R.id.bundle)?.isVisible =
+                state.page is Inbox && !state.page.incognito && selectedConversations != 0
+            findItem(R.id.unbundle)?.isVisible =
+                state.page is Updates && selectedConversations != 0
             findItem(R.id.block)?.isVisible = selectedConversations != 0
             findItem(R.id.rename)?.isVisible = selectedConversations == 1
         }
@@ -290,7 +301,7 @@ class MainActivity : QkThemedActivity(), MainView {
 
         binding.compose.setVisible(state.page is Inbox || state.page is Archived)
         conversationsAdapter.emptyView = binding.empty.takeIf {
-            state.page is Inbox || state.page is Archived
+            state.page is Inbox || state.page is Archived || state.page is Updates
         }
         searchAdapter.emptyView = binding.empty.takeIf { state.page is Searching }
 
@@ -334,11 +345,25 @@ class MainActivity : QkThemedActivity(), MainView {
                 binding.empty.setText(R.string.archived_empty_text)
             }
 
+            is Updates -> {
+                showBackButton(state.page.selected > 0)
+                title = when (state.page.selected != 0) {
+                    true -> getString(R.string.main_title_selected, state.page.selected)
+                    false -> getString(R.string.title_updates)
+                }
+                if (binding.recyclerView.adapter !== conversationsAdapter)
+                    binding.recyclerView.adapter = conversationsAdapter
+                conversationsAdapter.updateData(state.page.data)
+                itemTouchHelper.attachToRecyclerView(null)
+                binding.empty.setText(R.string.updates_empty_text)
+            }
+
             else -> {}
         }
 
         binding.drawer.inbox.isActivated = state.page is Inbox
         binding.drawer.archived.isActivated = state.page is Archived
+        binding.drawer.updates.isActivated = state.page is Updates
 
         if (binding.drawerLayout.isDrawerOpen(GravityCompat.START) && !state.drawerOpen)
             binding.drawerLayout.closeDrawer(GravityCompat.START)

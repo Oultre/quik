@@ -59,7 +59,8 @@ class ConversationRepositoryImpl @Inject constructor(
         realm: Realm,
         unreadAtTop: Boolean,
         archived: Boolean,
-        incognito: Boolean
+        incognito: Boolean,
+        bundled: Boolean
     ): RealmQuery<Conversation> {
         val sortOrder = mutableListOf("pinned", "draft", "lastMessage.date")
         val sortDirections = mutableListOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
@@ -75,6 +76,7 @@ class ConversationRepositoryImpl @Inject constructor(
             .equalTo("archived", archived)
             .equalTo("blocked", false)
             .equalTo("incognito", incognito)
+            .equalTo("bundled", bundled)
             .isNotEmpty("recipients")
             .beginGroup()
             .isNotNull("lastMessage")
@@ -87,14 +89,15 @@ class ConversationRepositoryImpl @Inject constructor(
     override fun getConversations(
         unreadAtTop: Boolean,
         archived: Boolean,
-        incognito: Boolean
+        incognito: Boolean,
+        bundled: Boolean
     ): RealmResults<Conversation> =
-        getConversationsBase(Realm.getDefaultInstance(), unreadAtTop, archived, incognito)
+        getConversationsBase(Realm.getDefaultInstance(), unreadAtTop, archived, incognito, bundled)
             .findAllAsync()
 
     override fun getConversationsSnapshot(unreadAtTop: Boolean): List<Conversation> =
         Realm.getDefaultInstance().use { realm ->
-            getConversationsBase(realm, unreadAtTop, false, false)
+            getConversationsBase(realm, unreadAtTop, false, false, false)
                 .findAll()
                 .let(realm::copyFromRealm)
         }
@@ -467,6 +470,24 @@ class ConversationRepositoryImpl @Inject constructor(
             realm.executeTransaction { conversations.forEach { it.incognito = false } }
         }
 
+    override fun markBundled(vararg threadIds: Long) =
+        Realm.getDefaultInstance().use { realm ->
+            val conversations = realm.where(Conversation::class.java)
+                .anyOf("id", threadIds)
+                .findAll()
+
+            realm.executeTransaction { conversations.forEach { it.bundled = true } }
+        }
+
+    override fun markUnbundled(vararg threadIds: Long) =
+        Realm.getDefaultInstance().use { realm ->
+            val conversations = realm.where(Conversation::class.java)
+                .anyOf("id", threadIds)
+                .findAll()
+
+            realm.executeTransaction { conversations.forEach { it.bundled = false } }
+        }
+
     override fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?) =
         Realm.getDefaultInstance().use { realm ->
             val conversations = realm.where(Conversation::class.java)
@@ -558,6 +579,14 @@ class ConversationRepositoryImpl @Inject constructor(
                                 }
                             }
 
+                        // Backchannel: preserve any existing bundle choice for this thread so a
+                        // re-create can't clobber a manual add/remove; otherwise auto-bundle
+                        // brand-new automated (shortcode / alphanumeric) senders.
+                        val existingBundled = realm.where(Conversation::class.java)
+                            .equalTo("id", threadId)
+                            .findFirst()
+                            ?.bundled
+
                         conversation.apply {
                             recipients.clear()
                             recipients.addAll(matchedRecipients)
@@ -570,6 +599,8 @@ class ConversationRepositoryImpl @Inject constructor(
                                 .equalTo("threadId", threadId)
                                 .sort("date", Sort.DESCENDING)
                                 .findFirst()
+
+                            bundled = existingBundled ?: shouldAutoBundle(this)
                         }
 
                         realm.executeTransaction { it.insertOrUpdate(conversation) }
@@ -609,6 +640,28 @@ class ConversationRepositoryImpl @Inject constructor(
             realm.executeTransaction { it.copyToRealmOrUpdate(conversation) }
             return conversation
         }
+    }
+
+    // Backchannel: heuristics for the "Updates" bundle (delivery/promo/mailing-list senders).
+    // A message is from an automated sender if its address is an alphanumeric sender ID
+    // (contains a letter) or a short code (a short, all-digit number). Ordinary 10+ digit
+    // phone numbers are not auto-bundled (that includes DoorDash/Instacart proxy numbers,
+    // which the user bundles manually).
+    private fun isAutomatedSender(address: String): Boolean {
+        val trimmed = address.trim()
+        if (trimmed.isEmpty()) return false
+        // alphanumeric sender IDs (e.g. "AMAZON", "Costco")
+        if (trimmed.any { it.isLetter() }) return true
+        // short codes: 3-6 digit all-numeric senders (allow separators like '-')
+        val digits = trimmed.count { it.isDigit() }
+        val onlyDigitsOrSeparators = trimmed.all { it.isDigit() || it == '-' || it == ' ' }
+        return onlyDigitsOrSeparators && digits in 3..6
+    }
+
+    private fun shouldAutoBundle(conversation: Conversation): Boolean {
+        if (conversation.recipients.size != 1) return false
+        val recipient = conversation.recipients.firstOrNull() ?: return false
+        return recipient.contact == null && isAutomatedSender(recipient.address)
     }
 
 }

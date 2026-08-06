@@ -63,6 +63,22 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/updates"
+            style="@style/DrawerRow">
+
+            <ImageView
+                android:id="@+id/updatesIcon"
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_label_black_24dp"
+                tools:tint="?android:attr/textColorSecondary" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="@string/drawer_updates" />
+
+        </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

@@ -26,6 +26,7 @@ import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
@@ -33,6 +34,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.provider.ContactsContract
 import android.provider.MediaStore
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.text.format.DateFormat
@@ -387,6 +389,8 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         activityVisibleIntent.onNext(false)
     }
 
+    private var speechRecognizer: SpeechRecognizer? = null
+
     override fun onDestroy() {
         super.onDestroy()
 
@@ -394,6 +398,9 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         QkMediaPlayer.reset()
 
         seekBarUpdater?.dispose()
+
+        speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 
 
@@ -626,16 +633,72 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     }
 
     override fun startSpeechRecognition() {
-        if (isSpeechRecognitionAvailable()) {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            }
-            try {
-                startActivityForResult(intent, ComposeView.SPEECH_RECOGNITION_REQUEST_CODE)
-            } catch (e: ActivityNotFoundException) {
-                Toast.makeText(this, getString(R.string.error_stt_toast), Toast.LENGTH_SHORT).show()
-            }
+        // Backchannel: use the on-device SpeechRecognizer *service* API (rather than the
+        // ACTION_RECOGNIZE_SPEECH activity) so third-party on-device recognizers such as
+        // Transcribro on GrapheneOS are used directly for transcription.
+        if (!isSpeechRecognitionAvailable()) {
+            Toast.makeText(this, getString(R.string.error_stt_toast), Toast.LENGTH_SHORT).show()
+            return
         }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                ComposeView.SPEECH_RECOGNITION_REQUEST_CODE
+            )
+            return
+        }
+
+        speechRecognizer?.destroy()
+        val recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechRecognizer = recognizer
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                Toast.makeText(
+                    this@ComposeActivity,
+                    getString(R.string.compose_stt_listening),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            override fun onResults(results: Bundle?) {
+                val match = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!match.isNullOrEmpty() && !match[0].isNullOrEmpty()) {
+                    // append recognized text, add a leading space if the box isn't empty
+                    val prefix = if (binding.message.text.isNullOrEmpty()) "" else " "
+                    binding.message.append(prefix + match[0])
+                    binding.message.setSelection(binding.message.text?.length ?: 0)
+                    binding.message.requestFocus()
+                }
+                recognizer.destroy()
+                speechRecognizer = null
+            }
+
+            override fun onError(error: Int) {
+                Toast.makeText(
+                    this@ComposeActivity,
+                    getString(R.string.error_stt_toast),
+                    Toast.LENGTH_SHORT
+                ).show()
+                recognizer.destroy()
+                speechRecognizer = null
+            }
+
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        }
+        recognizer.startListening(intent)
     }
 
     override fun themeChanged() {

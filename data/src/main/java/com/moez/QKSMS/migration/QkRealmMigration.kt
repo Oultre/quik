@@ -37,7 +37,7 @@ class QkRealmMigration @Inject constructor(
 ) : RealmMigration {
 
     companion object {
-        const val SCHEMA_VERSION: Long = 16
+        const val SCHEMA_VERSION: Long = 17
     }
 
     @SuppressLint("ApplySharedPref")
@@ -306,6 +306,16 @@ class QkRealmMigration @Inject constructor(
             if (realm.schema.get("Conversation")?.hasField("incognito") == false) {
                 realm.schema.get("Conversation")
                     ?.addField("incognito", Boolean::class.java, FieldAttribute.REQUIRED, FieldAttribute.INDEXED)
+            }
+
+            version++
+        }
+
+        if (version == 16L) {
+            // Backchannel: bundled conversations are grouped into the combined "Updates" box.
+            if (realm.schema.get("Conversation")?.hasField("bundled") == false) {
+                realm.schema.get("Conversation")
+                    ?.addField("bundled", Boolean::class.java, FieldAttribute.REQUIRED, FieldAttribute.INDEXED)
             }
 
             version++

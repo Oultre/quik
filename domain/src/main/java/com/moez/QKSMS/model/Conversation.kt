@@ -29,6 +29,8 @@ open class Conversation(
     @Index var blocked: Boolean = false,
     @Index var pinned: Boolean = false,
     @Index var incognito: Boolean = false,
+    // Backchannel: bundled = grouped into the combined "Updates" box (delivery/promo/etc.)
+    @Index var bundled: Boolean = false,
     var recipients: RealmList<Recipient> = RealmList(),
     var lastMessage: Message? = null,
     var draft: String = "",
