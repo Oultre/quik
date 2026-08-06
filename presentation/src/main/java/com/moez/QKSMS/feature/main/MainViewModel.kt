@@ -29,10 +29,12 @@ import dev.octoshrimpy.quik.extensions.mapNotNull
 import dev.octoshrimpy.quik.interactor.DeleteConversations
 import dev.octoshrimpy.quik.interactor.MarkAllSeen
 import dev.octoshrimpy.quik.interactor.MarkArchived
+import dev.octoshrimpy.quik.interactor.MarkBundled
 import dev.octoshrimpy.quik.interactor.MarkIncognito
 import dev.octoshrimpy.quik.interactor.MarkPinned
 import dev.octoshrimpy.quik.interactor.MarkRead
 import dev.octoshrimpy.quik.interactor.MarkUnarchived
+import dev.octoshrimpy.quik.interactor.MarkUnbundled
 import dev.octoshrimpy.quik.interactor.MarkUnincognito
 import dev.octoshrimpy.quik.interactor.MarkUnpinned
 import dev.octoshrimpy.quik.interactor.MarkUnread
@@ -75,10 +77,12 @@ class MainViewModel @Inject constructor(
     private val messageRepo: MessageRepository,
     private val deleteConversations: DeleteConversations,
     private val markArchived: MarkArchived,
+    private val markBundled: MarkBundled,
     private val markIncognito: MarkIncognito,
     private val markPinned: MarkPinned,
     private val markRead: MarkRead,
     private val markUnarchived: MarkUnarchived,
+    private val markUnbundled: MarkUnbundled,
     private val markUnincognito: MarkUnincognito,
     private val markUnpinned: MarkUnpinned,
     private val markUnread: MarkUnread,
@@ -101,8 +105,10 @@ class MainViewModel @Inject constructor(
         disposables += deleteConversations
         disposables += markAllSeen
         disposables += markArchived
+        disposables += markBundled
         disposables += markIncognito
         disposables += markUnarchived
+        disposables += markUnbundled
         disposables += markUnincognito
         disposables += migratePreferences
         disposables += syncContacts
@@ -509,7 +515,7 @@ class MainViewModel @Inject constructor(
         view.optionsItemIntent
                 .filter { itemId -> itemId == R.id.bundle }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
-                    conversationRepo.markBundled(*conversations.toLongArray())
+                    markBundled.execute(conversations.toList())
                     view.clearSelection()
                 }
                 .autoDisposable(view.scope())
@@ -518,7 +524,7 @@ class MainViewModel @Inject constructor(
         view.optionsItemIntent
                 .filter { itemId -> itemId == R.id.unbundle }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
-                    conversationRepo.markUnbundled(*conversations.toLongArray())
+                    markUnbundled.execute(conversations.toList())
                     view.clearSelection()
                 }
                 .autoDisposable(view.scope())
