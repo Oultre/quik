@@ -39,6 +39,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.text.format.DateFormat
 import android.view.ContextMenu
+import android.view.Gravity
 import android.view.DragEvent.ACTION_DRAG_ENDED
 import android.view.DragEvent.ACTION_DRAG_EXITED
 import android.view.DragEvent.ACTION_DROP
@@ -143,6 +144,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     override val clearCurrentMessageIntent: Subject<Boolean> = PublishSubject.create()
     override val messageLinkAskIntent: Subject<Uri> by lazy { messageAdapter.messageLinkClicks }
     override val reactionClickIntent: Subject<Long> by lazy { messageAdapter.reactionClicks }
+    override val reactionSelectedIntent: Subject<Pair<Long, String>> = PublishSubject.create()
     override val speechRecogniserIntent by lazy { binding.speechToTextIcon.clicks() }
     override val shadeIntent by lazy { binding.shadeBackground.clicks() }
     override val recordAudioStartStopRecording: Subject<Boolean> = PublishSubject.create()
@@ -444,6 +446,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         binding.toolbar.menu.findItem(R.id.details)?.isVisible = !state.editingMode && state.selectedMessages == 1
         binding.toolbar.menu.findItem(R.id.delete)?.isVisible = !state.editingMode && ((state.selectedMessages > 0) || state.canSend)
         binding.toolbar.menu.findItem(R.id.forward)?.isVisible = !state.editingMode && state.selectedMessages == 1
+        binding.toolbar.menu.findItem(R.id.react)?.isVisible = !state.editingMode && state.selectedMessages == 1
         binding.toolbar.menu.findItem(R.id.show_status)?.isVisible = !state.editingMode && state.selectedMessages > 0
         binding.toolbar.menu.findItem(R.id.previous)?.isVisible = state.selectedMessages == 0 && state.query.isNotEmpty()
         binding.toolbar.menu.findItem(R.id.next)?.isVisible = state.selectedMessages == 0 && state.query.isNotEmpty()
@@ -777,6 +780,66 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             .setTitle(R.string.compose_reactions_title)
             .setMessage(reactions.joinToString("\n"))
             .show()
+    }
+
+    // Backchannel: quick reaction bar (6 common emojis + "more" opens the full set)
+    override fun showReactionPicker(messageId: Long) {
+        val quick = listOf("👍", "❤️", "😂", "😮", "😢", "😡")
+        val more = listOf(
+            "😄", "😍", "😘", "😎", "🥳", "🙌",
+            "👏", "🙏", "🔥", "✅", "❌", "❗",
+            "❓", "😢", "😭", "😠", "😳", "🤔",
+            "👎", "🎉", "💯", "🙋", "😅", "🙊"
+        )
+        showEmojiDialog(messageId, R.string.compose_react_title, quick, showMore = true, moreEmojis = more)
+    }
+
+    private fun showEmojiDialog(
+        messageId: Long,
+        titleRes: Int,
+        emojis: List<String>,
+        showMore: Boolean,
+        moreEmojis: List<String>
+    ) {
+        val density = resources.displayMetrics.density
+        fun px(dp: Int) = (dp * density).toInt()
+
+        val container = android.widget.GridLayout(this).apply {
+            columnCount = 6
+            setPadding(px(12), px(12), px(12), px(12))
+        }
+
+        var dialog: AlertDialog? = null
+
+        val cells = emojis.toMutableList()
+        if (showMore) cells.add("➕") // "more" (heavy plus)
+
+        cells.forEach { label ->
+            val tv = android.widget.TextView(this).apply {
+                text = label
+                textSize = 26f
+                gravity = Gravity.CENTER
+                setPadding(px(10), px(8), px(10), px(8))
+                isClickable = true
+                setOnClickListener {
+                    dialog?.dismiss()
+                    if (label == "➕") {
+                        showEmojiDialog(messageId, R.string.compose_react_title, moreEmojis, showMore = false, moreEmojis = emptyList())
+                    } else {
+                        reactionSelectedIntent.onNext(messageId to label)
+                        clearSelection()
+                    }
+                }
+            }
+            container.addView(tv)
+        }
+
+        dialog = AlertDialog.Builder(this)
+            .setTitle(titleRes)
+            .setView(container)
+            .setNegativeButton(R.string.button_cancel, null)
+            .create()
+        dialog.show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {

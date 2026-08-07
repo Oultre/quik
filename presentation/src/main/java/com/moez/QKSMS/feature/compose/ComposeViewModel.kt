@@ -72,6 +72,7 @@ import dev.octoshrimpy.quik.model.Recipient
 import dev.octoshrimpy.quik.model.getText
 import dev.octoshrimpy.quik.repository.ContactRepository
 import dev.octoshrimpy.quik.repository.ConversationRepository
+import dev.octoshrimpy.quik.repository.EmojiReactionRepository
 import dev.octoshrimpy.quik.repository.MessageRepository
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import dev.octoshrimpy.quik.util.ActiveSubscriptionObservable
@@ -116,6 +117,7 @@ class ComposeViewModel @Inject constructor(
     private val billingManager: BillingManager,
     private val actionDelayedMessage: ActionDelayedMessage,
     private val conversationRepo: ConversationRepository,
+    private val reactions: EmojiReactionRepository,
     private val deleteMessages: DeleteMessages,
     private val markRead: MarkRead,
     private val messageDetailsFormatter: MessageDetailsFormatter,
@@ -526,6 +528,38 @@ class ComposeViewModel @Inject constructor(
             }
             .autoDisposable(view.scope())
             .subscribe { view.clearSelection() }
+
+        // Backchannel: open the reaction picker for the selected message
+        view.optionsItemIntent
+            .filter { it == R.id.react }
+            .withLatestFrom(view.messagesSelectedIntent) { _, messages -> messages.firstOrNull() }
+            .autoDisposable(view.scope())
+            .subscribe { messageId -> messageId?.let { view.showReactionPicker(it) } }
+
+        // Backchannel: send the chosen reaction as a Google-Messages-format SMS
+        view.reactionSelectedIntent
+            .withLatestFrom(conversation) { pair, conv -> Pair(pair, conv) }
+            .withLatestFrom(state) { (pair, conv), currentState ->
+                val (messageId, emoji) = pair
+                messageRepo.getMessage(messageId)?.let { target ->
+                    val body = reactions.buildReactionBody(emoji, target.getText(false).trim())
+                    val addresses = conv.recipients.mapNotNull { it.address }
+                    if (addresses.isNotEmpty()) {
+                        sendNewMessage.execute(
+                            SendNewMessage.Params(
+                                subId = currentState.subscription?.subscriptionId ?: -1,
+                                threadId = conv.id,
+                                addresses = addresses,
+                                body = body,
+                                sendAsGroup = addresses.size > 1 && currentState.sendAsGroup
+                            )
+                        )
+                    }
+                }
+                Unit
+            }
+            .autoDisposable(view.scope())
+            .subscribe()
 
         // expand message to show additional info
         view.optionsItemIntent

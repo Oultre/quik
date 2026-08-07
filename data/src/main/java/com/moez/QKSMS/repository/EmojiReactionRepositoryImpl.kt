@@ -132,6 +132,16 @@ class EmojiReactionRepositoryImpl @Inject constructor(
         return requireNotNull(adapter.fromJson(json)) { "Invalid emoji patterns JSON" }
     }
 
+    override fun buildReactionBody(emoji: String, originalMessageText: String): String {
+        // Google Messages reaction format understood by parseEmojiReaction():
+        //   <HS>Reacted <ZWSP><emoji><ZWSP> to "<HS><original><HS>"<HS>
+        // where HS = U+200A (hair space) and ZWSP = U+200B (zero-width space).
+        val hs = " "
+        val zwsp = "​"
+        return hs + "Reacted " + zwsp + emoji + zwsp + " to “" +
+                hs + originalMessageText + hs + "”" + hs
+    }
+
     override fun parseEmojiReaction(body: String): ParsedEmojiReaction? {
         val removal = parseRemoval(body)
         if (removal != null) return removal

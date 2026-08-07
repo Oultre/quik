@@ -440,6 +440,34 @@ open class MessageRepositoryImpl @Inject constructor(
                 }
 
                 insertOrUpdate()
+
+                // Backchannel: parse our own outgoing emoji reactions so they collapse into a
+                // reaction on the target bubble instead of showing as a "Reacted…" text message.
+                if (!isMms()) {
+                    val parsedReaction = reactions.parseEmojiReaction(getText(false))
+                    if (parsedReaction != null) {
+                        Realm.getDefaultInstance().use { reactionRealm ->
+                            val savedMessage = reactionRealm.where(Message::class.java)
+                                .equalTo("id", id)
+                                .findFirst()
+                            if (savedMessage != null) {
+                                val targetMessage = reactions.findTargetMessage(
+                                    savedMessage.threadId,
+                                    parsedReaction.originalMessage,
+                                    reactionRealm
+                                )
+                                reactionRealm.executeTransaction {
+                                    reactions.saveEmojiReaction(
+                                        savedMessage,
+                                        parsedReaction,
+                                        targetMessage,
+                                        reactionRealm
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

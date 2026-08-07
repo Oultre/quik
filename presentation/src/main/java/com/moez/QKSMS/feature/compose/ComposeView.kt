@@ -78,6 +78,8 @@ interface ComposeView : QkView<ComposeState> {
     val clearCurrentMessageIntent: Subject<Boolean>
     val messageLinkAskIntent: Observable<Uri>
     val reactionClickIntent: Subject<Long>
+    // Backchannel: emits (targetMessageId, emoji) when the user picks a reaction to send
+    val reactionSelectedIntent: Subject<Pair<Long, String>>
     val speechRecogniserIntent: Observable<*>
     val shadeIntent: Observable<Unit>
     val recordAudioStartStopRecording: Subject<Boolean>
@@ -113,6 +115,7 @@ interface ComposeView : QkView<ComposeState> {
     fun showDeleteDialog( messages: List<Long>)
     fun showClearCurrentMessageDialog()
     fun showReactionsDialog(reactions: List<String>)
+    fun showReactionPicker(messageId: Long)
     fun startSpeechRecognition()
     fun focusMessage()
 }

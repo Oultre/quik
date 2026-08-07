@@ -26,6 +26,12 @@ data class ParsedEmojiReaction(val emoji: String, val originalMessage: String, v
 interface EmojiReactionRepository {
     fun parseEmojiReaction(body: String): ParsedEmojiReaction?
 
+    /**
+     * Backchannel: builds an outgoing reaction message body in the Google Messages
+     * invisible-marker format that [parseEmojiReaction] (and Google Messages) understands.
+     */
+    fun buildReactionBody(emoji: String, originalMessageText: String): String
+
     fun findTargetMessage(threadId: Long, originalMessageText: String, realm: Realm): Message?
 
     fun saveEmojiReaction(
