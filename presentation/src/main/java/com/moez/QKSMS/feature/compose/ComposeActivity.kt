@@ -201,6 +201,11 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             binding.messageList.setHasFixedSize(true)
             binding.messageList.adapter = messageAdapter
 
+            // Backchannel: long-pressing a message opens the emoji reaction picker directly
+            messageAdapter.messageLongClicks
+                .autoDisposable(scope())
+                .subscribe { messageId -> showReactionPicker(messageId) }
+
             binding.messageAttachments.adapter = composeAttachmentAdapter
 
             binding.message.supportsInputContent = true

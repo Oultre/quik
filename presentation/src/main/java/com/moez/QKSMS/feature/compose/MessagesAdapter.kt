@@ -111,6 +111,8 @@ class MessagesAdapter @Inject constructor(
     val resendClicks: Subject<Long> = PublishSubject.create()
     val partContextMenuRegistrar: Subject<View> = PublishSubject.create()
     val reactionClicks: Subject<Long> = PublishSubject.create()
+    // Backchannel: emits a message id when it's long-pressed, to offer a reaction
+    val messageLongClicks: Subject<Long> = PublishSubject.create()
 
     var data: Pair<Conversation, RealmResults<Message>>? = null
         set(value) {
@@ -184,6 +186,9 @@ class MessagesAdapter @Inject constructor(
                 getItem(adapterPosition)?.let {
                     toggleSelection(it.id)
                     view.isActivated = isSelected(it.id)
+                    // Backchannel: long-press offers a reaction (and keeps the message selected
+                    // so the toolbar actions remain available)
+                    if (isSelected(it.id)) messageLongClicks.onNext(it.id)
                 }
                 true
             }
