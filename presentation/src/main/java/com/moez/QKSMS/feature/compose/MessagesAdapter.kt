@@ -197,7 +197,8 @@ class MessagesAdapter @Inject constructor(
                 getItem(adapterPosition)?.let {
                     toggleSelection(it.id)
                     view.isActivated = isSelected(it.id)
-                    if (isSelected(it.id)) showReactionBar(view, it.id)
+                    // Backchannel: only offer reactions on received (incoming) messages
+                    if (isSelected(it.id) && !it.isMe()) showReactionBar(view, it.id)
                 }
                 true
             }
@@ -237,9 +238,10 @@ class MessagesAdapter @Inject constructor(
         (quick + "➕").forEach { label ->
             val tv = TextView(ctx).apply {
                 text = label
-                textSize = 22f
-                val p = 8.dpToPx(ctx)
-                setPadding(p, p, p, p)
+                textSize = 19f
+                val ph = 5.dpToPx(ctx)
+                val pv = 6.dpToPx(ctx)
+                setPadding(ph, pv, ph, pv)
                 isClickable = true
                 setOnClickListener {
                     popup.dismiss()

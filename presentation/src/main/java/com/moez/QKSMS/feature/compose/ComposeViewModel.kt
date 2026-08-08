@@ -529,13 +529,6 @@ class ComposeViewModel @Inject constructor(
             .autoDisposable(view.scope())
             .subscribe { view.clearSelection() }
 
-        // Backchannel: open the reaction picker for the selected message
-        view.optionsItemIntent
-            .filter { it == R.id.react }
-            .withLatestFrom(view.messagesSelectedIntent) { _, messages -> messages.firstOrNull() }
-            .autoDisposable(view.scope())
-            .subscribe { messageId -> messageId?.let { view.showReactionPicker(it) } }
-
         // Backchannel: send the chosen reaction as a Google-Messages-format SMS
         view.reactionSelectedIntent
             .withLatestFrom(conversation) { pair, conv -> Pair(pair, conv) }
