@@ -190,16 +190,20 @@ class MessagesAdapter @Inject constructor(
                     }
                 }
             }
-            view.setOnLongClickListener {
+            // Backchannel: long-press floats an emoji reaction bar on the bubble (and keeps the
+            // message selected so the toolbar actions remain available). The handler is set on
+            // the body too, so it intercepts before the TextView's own text-selection long-press.
+            val onLongPress = View.OnLongClickListener {
                 getItem(adapterPosition)?.let {
                     toggleSelection(it.id)
                     view.isActivated = isSelected(it.id)
-                    // Backchannel: long-press floats an emoji reaction bar on the bubble (and
-                    // keeps the message selected so the toolbar actions remain available)
                     if (isSelected(it.id)) showReactionBar(view, it.id)
                 }
                 true
             }
+            view.setOnLongClickListener(onLongPress)
+            body.isLongClickable = true
+            body.setOnLongClickListener(onLongPress)
         }
     }
 
