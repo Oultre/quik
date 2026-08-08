@@ -32,10 +32,14 @@ import android.text.style.ClickableSpan
 import android.text.style.StyleSpan
 import android.text.style.URLSpan
 import android.text.util.Linkify
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.net.toUri
@@ -111,8 +115,12 @@ class MessagesAdapter @Inject constructor(
     val resendClicks: Subject<Long> = PublishSubject.create()
     val partContextMenuRegistrar: Subject<View> = PublishSubject.create()
     val reactionClicks: Subject<Long> = PublishSubject.create()
-    // Backchannel: emits a message id when it's long-pressed, to offer a reaction
-    val messageLongClicks: Subject<Long> = PublishSubject.create()
+    // Backchannel: emits (messageId, emoji) when a reaction is picked from the anchored bar
+    val messageReactionSelected: Subject<Pair<Long, String>> = PublishSubject.create()
+    // Backchannel: emits a messageId when the "more" (+) button is tapped, to open the full picker
+    val messageReactionMore: Subject<Long> = PublishSubject.create()
+
+    private var reactionPopup: PopupWindow? = null
 
     var data: Pair<Conversation, RealmResults<Message>>? = null
         set(value) {
@@ -186,13 +194,65 @@ class MessagesAdapter @Inject constructor(
                 getItem(adapterPosition)?.let {
                     toggleSelection(it.id)
                     view.isActivated = isSelected(it.id)
-                    // Backchannel: long-press offers a reaction (and keeps the message selected
-                    // so the toolbar actions remain available)
-                    if (isSelected(it.id)) messageLongClicks.onNext(it.id)
+                    // Backchannel: long-press floats an emoji reaction bar on the bubble (and
+                    // keeps the message selected so the toolbar actions remain available)
+                    if (isSelected(it.id)) showReactionBar(view, it.id)
                 }
                 true
             }
         }
+    }
+
+    // Backchannel: Textra/iMessage-style reaction bar floating on the bubble
+    private fun showReactionBar(anchor: View, messageId: Long) {
+        reactionPopup?.dismiss()
+
+        val ctx = anchor.context
+        val quick = listOf("👍", "❤️", "😂", "😮", "😢", "😡")
+
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundResource(R.drawable.reaction_bar_bg)
+            elevation = 8.dpToPx(ctx).toFloat()
+            val padH = 8.dpToPx(ctx)
+            val padV = 6.dpToPx(ctx)
+            setPadding(padH, padV, padH, padV)
+        }
+
+        val popup = PopupWindow(
+            row,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+        reactionPopup = popup
+
+        (quick + "➕").forEach { label ->
+            val tv = TextView(ctx).apply {
+                text = label
+                textSize = 22f
+                val p = 8.dpToPx(ctx)
+                setPadding(p, p, p, p)
+                isClickable = true
+                setOnClickListener {
+                    popup.dismiss()
+                    if (label == "➕") messageReactionMore.onNext(messageId)
+                    else messageReactionSelected.onNext(messageId to label)
+                }
+            }
+            row.addView(tv)
+        }
+
+        // measure so we can float the bar above the bubble
+        row.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        popup.showAsDropDown(
+            anchor,
+            8.dpToPx(ctx),
+            -anchor.height - row.measuredHeight - 4.dpToPx(ctx)
+        )
     }
 
     override fun onBindViewHolder(holder: QkViewHolder, position: Int) {

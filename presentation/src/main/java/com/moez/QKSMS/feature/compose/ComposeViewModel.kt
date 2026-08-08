@@ -556,6 +556,7 @@ class ComposeViewModel @Inject constructor(
                         )
                     }
                 }
+                view.clearSelection()
                 Unit
             }
             .autoDisposable(view.scope())

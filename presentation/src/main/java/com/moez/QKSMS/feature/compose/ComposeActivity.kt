@@ -144,7 +144,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     override val clearCurrentMessageIntent: Subject<Boolean> = PublishSubject.create()
     override val messageLinkAskIntent: Subject<Uri> by lazy { messageAdapter.messageLinkClicks }
     override val reactionClickIntent: Subject<Long> by lazy { messageAdapter.reactionClicks }
-    override val reactionSelectedIntent: Subject<Pair<Long, String>> = PublishSubject.create()
+    override val reactionSelectedIntent: Subject<Pair<Long, String>> by lazy { messageAdapter.messageReactionSelected }
     override val speechRecogniserIntent by lazy { binding.speechToTextIcon.clicks() }
     override val shadeIntent by lazy { binding.shadeBackground.clicks() }
     override val recordAudioStartStopRecording: Subject<Boolean> = PublishSubject.create()
@@ -201,8 +201,8 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             binding.messageList.setHasFixedSize(true)
             binding.messageList.adapter = messageAdapter
 
-            // Backchannel: long-pressing a message opens the emoji reaction picker directly
-            messageAdapter.messageLongClicks
+            // Backchannel: the "+" on the floating reaction bar opens the full emoji picker
+            messageAdapter.messageReactionMore
                 .autoDisposable(scope())
                 .subscribe { messageId -> showReactionPicker(messageId) }
 
@@ -787,25 +787,16 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             .show()
     }
 
-    // Backchannel: quick reaction bar (6 common emojis + "more" opens the full set)
+    // Backchannel: full emoji grid (opened by the "+" on the floating bar, or the toolbar React)
     override fun showReactionPicker(messageId: Long) {
-        val quick = listOf("👍", "❤️", "😂", "😮", "😢", "😡")
-        val more = listOf(
+        val emojis = listOf(
+            "👍", "❤️", "😂", "😮", "😢", "😡",
             "😄", "😍", "😘", "😎", "🥳", "🙌",
             "👏", "🙏", "🔥", "✅", "❌", "❗",
-            "❓", "😢", "😭", "😠", "😳", "🤔",
-            "👎", "🎉", "💯", "🙋", "😅", "🙊"
+            "❓", "😭", "😠", "😳", "🤔", "👎",
+            "🎉", "💯", "🙋", "😅", "🙊", "👀"
         )
-        showEmojiDialog(messageId, R.string.compose_react_title, quick, showMore = true, moreEmojis = more)
-    }
 
-    private fun showEmojiDialog(
-        messageId: Long,
-        titleRes: Int,
-        emojis: List<String>,
-        showMore: Boolean,
-        moreEmojis: List<String>
-    ) {
         val density = resources.displayMetrics.density
         fun px(dp: Int) = (dp * density).toInt()
 
@@ -816,10 +807,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
 
         var dialog: AlertDialog? = null
 
-        val cells = emojis.toMutableList()
-        if (showMore) cells.add("➕") // "more" (heavy plus)
-
-        cells.forEach { label ->
+        emojis.forEach { label ->
             val tv = android.widget.TextView(this).apply {
                 text = label
                 textSize = 26f
@@ -828,19 +816,15 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
                 isClickable = true
                 setOnClickListener {
                     dialog?.dismiss()
-                    if (label == "➕") {
-                        showEmojiDialog(messageId, R.string.compose_react_title, moreEmojis, showMore = false, moreEmojis = emptyList())
-                    } else {
-                        reactionSelectedIntent.onNext(messageId to label)
-                        clearSelection()
-                    }
+                    reactionSelectedIntent.onNext(messageId to label)
+                    clearSelection()
                 }
             }
             container.addView(tv)
         }
 
         dialog = AlertDialog.Builder(this)
-            .setTitle(titleRes)
+            .setTitle(R.string.compose_react_title)
             .setView(container)
             .setNegativeButton(R.string.button_cancel, null)
             .create()
