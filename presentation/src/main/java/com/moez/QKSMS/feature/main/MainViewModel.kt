@@ -199,11 +199,7 @@ class MainViewModel @Inject constructor(
                         copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), true)))
                     }
                 else if (state.page is Updates)
-                    newState {
-                        copy(page = Updates(data = conversationRepo.getConversations(
-                            prefs.unreadAtTop.get(), archived = false, incognito = false, bundled = true
-                        )))
-                    }
+                    newState { copy(page = Updates(data = messageRepo.getBundledMessages())) }
             }
             .autoDisposable(view.scope())
             .subscribe()
@@ -358,7 +354,8 @@ class MainViewModel @Inject constructor(
                         state.page is Searching -> view.clearSearch()
                         state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                         state.page is Archived && state.page.selected > 0 -> view.clearSelection()
-                        state.page is Updates && state.page.selected > 0 -> view.clearSelection()
+                        state.page is Updates ->
+                            newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                         state.page is Inbox && state.page.incognito ->
                             newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
 
@@ -385,7 +382,6 @@ class MainViewModel @Inject constructor(
                             state.page is Searching -> view.clearSearch()
                             state.page is Inbox && state.page.selected > 0 -> view.clearSelection()
                             state.page is Archived && state.page.selected > 0 -> view.clearSelection()
-                            state.page is Updates && state.page.selected > 0 -> view.clearSelection()
                             state.page is Inbox && state.page.incognito -> {
                                 newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                             }
@@ -412,7 +408,7 @@ class MainViewModel @Inject constructor(
                     when (drawerItem) {
                         NavItem.INBOX -> newState { copy(page = Inbox(data = conversationRepo.getConversations(prefs.unreadAtTop.get()))) }
                         NavItem.ARCHIVED -> newState { copy(page = Archived(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), true))) }
-                        NavItem.UPDATES -> newState { copy(page = Updates(data = conversationRepo.getConversations(prefs.unreadAtTop.get(), archived = false, incognito = false, bundled = true))) }
+                        NavItem.UPDATES -> newState { copy(page = Updates(data = messageRepo.getBundledMessages())) }
                         else -> Unit
                     }
                 }
@@ -521,14 +517,18 @@ class MainViewModel @Inject constructor(
                 .autoDisposable(view.scope())
                 .subscribe()
 
-        view.optionsItemIntent
-                .filter { itemId -> itemId == R.id.unbundle }
-                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
-                    markUnbundled.execute(conversations.toList())
-                    view.clearSelection()
-                }
+        // Backchannel: long-press a message in the Updates feed to move its sender back to the inbox.
+        // The feed is rebuilt afterwards so the departing sender's messages drop out of it.
+        view.unbundleConversationIntent
                 .autoDisposable(view.scope())
-                .subscribe()
+                .subscribe { threadId ->
+                    markUnbundled.execute(listOf(threadId)) {
+                        newState {
+                            if (page is Updates) copy(page = Updates(data = messageRepo.getBundledMessages()))
+                            else this
+                        }
+                    }
+                }
 
         view.optionsItemIntent
                 .filter { itemId -> itemId == R.id.unmute }
@@ -618,11 +618,6 @@ class MainViewModel @Inject constructor(
                         }
 
                         is Archived -> {
-                            val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
-                            newState { copy(page = page) }
-                        }
-
-                        is Updates -> {
                             val page = state.page.copy(addContact = add, markPinned = pin, markRead = read, markMute = mute, selected = selected)
                             newState { copy(page = page) }
                         }

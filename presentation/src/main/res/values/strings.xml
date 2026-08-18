@@ -81,6 +81,8 @@
     <string name="archived_empty_text">Your archived conversations will appear here</string>
     <string name="incognito_empty_text">Your hidden conversations will appear here</string>
     <string name="updates_empty_text">Delivery, promo and mailing-list messages will be grouped here</string>
+    <string name="dialog_unbundle_title">Move to Inbox</string>
+    <string name="dialog_unbundle_message">Move %1$s out of Updates and back to your inbox?</string>
     <string name="main_fab_cd">Start new conversation</string>
     <string name="main_default_sms_title">Love texting again</string>
     <string name="main_default_sms_message">Make QUIK your default SMS app</string>

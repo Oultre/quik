@@ -122,6 +122,30 @@ open class MessageRepositoryImpl @Inject constructor(
     override fun getMessagesSync(threadId: Long, query: String): RealmResults<Message> =
         getMessagesBase(threadId, query).findAll()
 
+    /**
+     * Backchannel: the merged "Updates" feed. Resolves the currently bundled conversations, then
+     * returns their messages as a single date-descending result set. The thread ids are resolved
+     * once per call, so a conversation that becomes bundled later only appears on the next call --
+     * new messages in an already-bundled thread arrive live, since the result set itself is live.
+     */
+    override fun getBundledMessages(): RealmResults<Message> {
+        val realm = Realm.getDefaultInstance()
+
+        val threadIds = realm.where(Conversation::class.java)
+            .equalTo("bundled", true)
+            .equalTo("archived", false)
+            .equalTo("blocked", false)
+            .findAll()
+            .map { it.id }
+            .toLongArray()
+
+        return realm.where(Message::class.java)
+            .anyOf("threadId", threadIds)
+            .equalTo("isEmojiReaction", false)
+            .sort("date", Sort.DESCENDING)
+            .findAllAsync()
+    }
+
     override fun getMessage(messageId: Long) =
         Realm.getDefaultInstance()
             .also { it.refresh() }

@@ -19,6 +19,7 @@
 package dev.octoshrimpy.quik.feature.main
 
 import dev.octoshrimpy.quik.model.Conversation
+import dev.octoshrimpy.quik.model.Message
 import dev.octoshrimpy.quik.model.SearchResult
 import dev.octoshrimpy.quik.repository.SyncRepository
 import io.realm.RealmResults
@@ -65,12 +66,9 @@ data class Archived(
     val selected: Int = 0
 ) : MainPage()
 
-// Backchannel: the combined "Updates" box of bundled (delivery/promo/etc.) conversations
+// Backchannel: the combined "Updates" box. Unlike the other pages this is a merged MESSAGE feed --
+// every message from every bundled (delivery/promo/etc.) conversation in one date-sorted stream --
+// rather than a list of conversations, so there is no multi-select here.
 data class Updates(
-    val addContact: Boolean = false,
-    val markPinned: Boolean = true,
-    val markRead: Boolean = false,
-    val markMute: Boolean = true,
-    val data: RealmResults<Conversation>? = null,
-    val selected: Int = 0
+    val data: RealmResults<Message>? = null
 ) : MainPage()

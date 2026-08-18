@@ -79,6 +79,7 @@ class MainActivity : QkThemedActivity(), MainView {
     @Inject lateinit var conversationsAdapter: ConversationsAdapter
     @Inject lateinit var drawerBadgesExperiment: DrawerBadgesExperiment
     @Inject lateinit var searchAdapter: SearchAdapter
+    @Inject lateinit var updatesAdapter: UpdatesAdapter
     @Inject lateinit var itemTouchCallback: ConversationItemTouchCallback
     @Inject lateinit var viewModelFactory: ViewModelProvider.Factory
 
@@ -119,6 +120,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override val confirmDeleteIntent: Subject<List<Long>> = PublishSubject.create()
     override val renameConversationIntent: Subject<String> = PublishSubject.create()
     override val swipeConversationIntent by lazy { itemTouchCallback.swipes }
+    override val unbundleConversationIntent: Subject<Long> = PublishSubject.create()
     override val changelogMoreIntent by lazy { changelogDialog.moreClicks }
     override val undoArchiveIntent: Subject<Unit> = PublishSubject.create()
     override val snackbarButtonIntent: Subject<Unit> = PublishSubject.create()
@@ -169,6 +171,14 @@ class MainActivity : QkThemedActivity(), MainView {
 
         itemTouchCallback.adapter = conversationsAdapter
         conversationsAdapter.autoScrollToStart(binding.recyclerView)
+
+        // Backchannel: long-pressing a message in the Updates feed offers to move its sender back
+        // to the inbox. The feed has no selection toolbar, so this is the way out of the bundle.
+        updatesAdapter.unbundleRequests
+            .autoDisposable(scope())
+            .subscribe { threadId ->
+                showUnbundleDialog(threadId, updatesAdapter.getSenderName(threadId))
+            }
 
         // Don't allow clicks to pass through the drawer layout
         binding.drawer.root.clicks().autoDisposable(scope()).subscribe()
@@ -224,35 +234,30 @@ class MainActivity : QkThemedActivity(), MainView {
         val addContact = when (state.page) {
             is Inbox -> state.page.addContact
             is Archived -> state.page.addContact
-            is Updates -> state.page.addContact
             else -> false
         }
 
         val markPinned = when (state.page) {
             is Inbox -> state.page.markPinned
             is Archived -> state.page.markPinned
-            is Updates -> state.page.markPinned
             else -> true
         }
 
         val markRead = when (state.page) {
             is Inbox -> state.page.markRead
             is Archived -> state.page.markRead
-            is Updates -> state.page.markRead
             else -> true
         }
 
         val markMute = when (state.page) {
             is Inbox -> state.page.markMute
             is Archived -> state.page.markMute
-            is Updates -> state.page.markMute
             else -> true
         }
 
         val selectedConversations = when (state.page) {
             is Inbox -> state.page.selected
             is Archived -> state.page.selected
-            is Updates -> state.page.selected
             else -> 0
         }
 
@@ -286,8 +291,6 @@ class MainActivity : QkThemedActivity(), MainView {
             findItem(R.id.unmute)?.isVisible = !markMute && selectedConversations != 0
             findItem(R.id.bundle)?.isVisible =
                 state.page is Inbox && !state.page.incognito && selectedConversations != 0
-            findItem(R.id.unbundle)?.isVisible =
-                state.page is Updates && selectedConversations != 0
             findItem(R.id.block)?.isVisible = selectedConversations != 0
             findItem(R.id.rename)?.isVisible = selectedConversations == 1
         }
@@ -301,8 +304,9 @@ class MainActivity : QkThemedActivity(), MainView {
 
         binding.compose.setVisible(state.page is Inbox || state.page is Archived)
         conversationsAdapter.emptyView = binding.empty.takeIf {
-            state.page is Inbox || state.page is Archived || state.page is Updates
+            state.page is Inbox || state.page is Archived
         }
+        updatesAdapter.emptyView = binding.empty.takeIf { state.page is Updates }
         searchAdapter.emptyView = binding.empty.takeIf { state.page is Searching }
 
         when (state.page) {
@@ -346,14 +350,11 @@ class MainActivity : QkThemedActivity(), MainView {
             }
 
             is Updates -> {
-                showBackButton(state.page.selected > 0)
-                title = when (state.page.selected != 0) {
-                    true -> getString(R.string.main_title_selected, state.page.selected)
-                    false -> getString(R.string.title_updates)
-                }
-                if (binding.recyclerView.adapter !== conversationsAdapter)
-                    binding.recyclerView.adapter = conversationsAdapter
-                conversationsAdapter.updateData(state.page.data)
+                showBackButton(true)
+                title = getString(R.string.title_updates)
+                if (binding.recyclerView.adapter !== updatesAdapter)
+                    binding.recyclerView.adapter = updatesAdapter
+                updatesAdapter.updateData(state.page.data)
                 itemTouchHelper.attachToRecyclerView(null)
                 binding.empty.setText(R.string.updates_empty_text)
             }
@@ -488,6 +489,17 @@ class MainActivity : QkThemedActivity(), MainView {
                 )
             )
             .setPositiveButton(R.string.button_delete) { _, _ -> confirmDeleteIntent.onNext(conversations) }
+            .setNegativeButton(R.string.button_cancel, null)
+            .show()
+    }
+
+    override fun showUnbundleDialog(threadId: Long, senderName: String) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_unbundle_title)
+            .setMessage(getString(R.string.dialog_unbundle_message, senderName))
+            .setPositiveButton(R.string.main_menu_unbundle) { _, _ ->
+                unbundleConversationIntent.onNext(threadId)
+            }
             .setNegativeButton(R.string.button_cancel, null)
             .show()
     }

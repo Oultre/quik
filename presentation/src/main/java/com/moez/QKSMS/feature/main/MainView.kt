@@ -41,6 +41,8 @@ interface MainView : QkView<MainState> {
     val confirmDeleteIntent: Observable<List<Long>>
     val renameConversationIntent: Observable<String>
     val swipeConversationIntent: Observable<Pair<Long, Int>>
+    // Backchannel: thread id of a conversation to move out of the Updates feed and back to the inbox
+    val unbundleConversationIntent: Observable<Long>
     val changelogMoreIntent: Observable<*>
     val undoArchiveIntent: Observable<Unit>
     val snackbarButtonIntent: Observable<Unit>
@@ -54,6 +56,8 @@ interface MainView : QkView<MainState> {
     fun showBlockingDialog(conversations: List<Long>, block: Boolean)
     fun showDeleteDialog(conversations: List<Long>)
     fun showRenameDialog(conversationName: String)
+    // Backchannel: confirm moving a sender out of the Updates feed
+    fun showUnbundleDialog(threadId: Long, senderName: String)
     fun showChangelog(changelog: ChangelogManager.CumulativeChangelog)
     fun showArchivedSnackbar(countConversationsArchived: Int, isArchiving: Boolean)
     fun drawerToggled(opened: Boolean)

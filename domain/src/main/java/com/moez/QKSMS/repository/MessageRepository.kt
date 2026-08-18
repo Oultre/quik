@@ -44,6 +44,12 @@ interface MessageRepository {
 
     fun getMessagesSync(threadId: Long, query: String = ""): RealmResults<Message>
 
+    /**
+     * Backchannel: every message belonging to a bundled ("Updates") conversation, newest first,
+     * so the Updates page can render them as one merged feed instead of a list of threads
+     */
+    fun getBundledMessages(): RealmResults<Message>
+
     fun getMessage(messageId: Long): Message?
 
     fun getUnmanagedMessage(messageId: Long): Message?
