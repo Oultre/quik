@@ -32,9 +32,29 @@ android {
         minSdk 23
         targetSdkVersion 33
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Backchannel: GIF search needs a provider API key. It is read from local.properties
+        // (which is gitignored) or the GIPHY_API_KEY env var, so it never lands in the repo.
+        // Without one the GIF picker stays disabled and says so.
+        buildConfigField "String", "GIPHY_API_KEY", "\"${giphyApiKey()}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     namespace 'dev.octoshrimpy.quik.data'
+}
+
+def giphyApiKey() {
+    def fromEnv = System.getenv("GIPHY_API_KEY")
+    if (fromEnv != null && !fromEnv.isEmpty()) return fromEnv
+
+    def props = new Properties()
+    def propsFile = rootProject.file('local.properties')
+    if (propsFile.exists()) props.load(new FileInputStream(propsFile))
+
+    return props.getProperty('giphyApiKey', '')
 }
 
 dependencies {

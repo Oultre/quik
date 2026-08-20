@@ -82,6 +82,14 @@
     <string name="incognito_empty_text">Your hidden conversations will appear here</string>
     <string name="updates_empty_text">Delivery, promo and mailing-list messages will be grouped here</string>
     <string name="dialog_unbundle_title">Move to Inbox</string>
+    <string name="gif_picker_title">GIF</string>
+    <string name="gif_picker_hint">Search GIFs</string>
+    <string name="gif_picker_empty">No GIFs found</string>
+    <string name="gif_picker_error">Could not reach the GIF service. Check your connection.</string>
+    <string name="gif_picker_retry">Retry</string>
+    <string name="gif_picker_no_key">No GIF API key was set at build time. Add giphyApiKey to local.properties and rebuild.</string>
+    <string name="gif_picker_failed">Could not attach that GIF</string>
+    <string name="compose_attach_gif_cd">GIF</string>
     <string name="dialog_unbundle_message">Move %1$s out of Updates and back to your inbox?</string>
     <string name="main_fab_cd">Start new conversation</string>
     <string name="main_default_sms_title">Love texting again</string>

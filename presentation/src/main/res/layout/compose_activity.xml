@@ -419,7 +419,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:constraint_referenced_ids="contact,contactLabel,schedule,scheduleLabel,attachAFileIcon,attachAFileLabel,attachAnAudioMessageIcon,attachAnAudioMessageLabel,gallery,galleryLabel,camera,cameraLabel" />
+        app:constraint_referenced_ids="contact,contactLabel,schedule,scheduleLabel,attachAFileIcon,attachAFileLabel,attachAnAudioMessageIcon,attachAnAudioMessageLabel,gallery,galleryLabel,gif,gifLabel,camera,cameraLabel" />
 
     <View
         android:id="@+id/shadeBackground"
@@ -583,7 +583,7 @@
         android:padding="10dp"
         android:src="@drawable/ic_insert_photo_black_24dp"
         android:visibility="visible"
-        app:layout_constraintBottom_toTopOf="@id/camera"
+        app:layout_constraintBottom_toTopOf="@id/gif"
         app:layout_constraintEnd_toEndOf="@id/attach"
         app:layout_constraintStart_toStartOf="@id/attach"
         app:tint="@color/textPrimaryDark" />
@@ -604,6 +604,39 @@
         app:layout_constraintBottom_toBottomOf="@id/gallery"
         app:layout_constraintStart_toEndOf="@id/gallery"
         app:layout_constraintTop_toTopOf="@id/gallery" />
+
+    <ImageView
+        android:id="@+id/gif"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/circle"
+        android:backgroundTint="@color/tools_theme"
+        android:contentDescription="@string/compose_attach_gif_cd"
+        android:elevation="4dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_gif_black_24dp"
+        app:layout_constraintBottom_toTopOf="@id/camera"
+        app:layout_constraintEnd_toEndOf="@id/attach"
+        app:layout_constraintStart_toStartOf="@id/attach"
+        app:tint="@color/textPrimaryDark" />
+
+    <dev.octoshrimpy.quik.common.widget.QkTextView
+        android:id="@+id/gifLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/rounded_rectangle_4dp"
+        android:backgroundTint="@color/tools_theme"
+        android:elevation="4dp"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/compose_attach_gif_cd"
+        android:textColor="@color/textPrimaryDark"
+        app:layout_constraintBottom_toBottomOf="@id/gif"
+        app:layout_constraintStart_toEndOf="@id/gif"
+        app:layout_constraintTop_toTopOf="@id/gif" />
 
     <ImageView
         android:id="@+id/camera"

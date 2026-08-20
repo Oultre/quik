@@ -82,6 +82,8 @@ import dev.octoshrimpy.quik.repository.ContactRepositoryImpl
 import dev.octoshrimpy.quik.repository.ConversationRepository
 import dev.octoshrimpy.quik.repository.ConversationRepositoryImpl
 import dev.octoshrimpy.quik.repository.EmojiReactionRepository
+import dev.octoshrimpy.quik.repository.GifRepository
+import dev.octoshrimpy.quik.repository.GifRepositoryImpl
 import dev.octoshrimpy.quik.repository.EmojiReactionRepositoryImpl
 import dev.octoshrimpy.quik.repository.MessageContentFilterRepository
 import dev.octoshrimpy.quik.repository.MessageContentFilterRepositoryImpl
@@ -211,6 +213,9 @@ class AppModule(private var application: Application) {
 
     @Provides
     fun provideConversationRepository(repository: ConversationRepositoryImpl): ConversationRepository = repository
+
+    @Provides
+    fun provideGifRepository(repository: GifRepositoryImpl): GifRepository = repository
 
     @Provides
     fun provideMessageRepository(repository: MessageRepositoryImpl): MessageRepository = repository

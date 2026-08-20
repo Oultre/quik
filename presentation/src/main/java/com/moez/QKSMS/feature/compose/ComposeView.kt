@@ -39,6 +39,8 @@ interface ComposeView : QkView<ComposeState> {
         const val ATTACH_CONTACT_REQUEST_CODE = 3
         const val ATTACH_FILE_REQUEST_CODE = 4
         const val SPEECH_RECOGNITION_REQUEST_CODE = 5
+        // Backchannel: GIF picker
+        const val ATTACH_GIF_REQUEST_CODE = 6
 
         const val CAMERA_DESTINATION_KEY = "camera_destination"
     }
@@ -62,6 +64,8 @@ interface ComposeView : QkView<ComposeState> {
     val cameraIntent: Observable<*>
     val attachAnyFileIntent: Observable<*>
     val attachImageFileIntent: Observable<*>
+    // Backchannel: open the GIF search picker
+    val attachGifIntent: Observable<*>
     val scheduleIntent: Observable<*>
     val scheduleAction: Observable<*>
     val attachContactIntent: Observable<*>
@@ -107,6 +111,7 @@ interface ComposeView : QkView<ComposeState> {
     fun showKeyboard()
     fun requestCamera()
     fun requestGallery(mimeType: String, requestCode: Int)
+    fun requestGif()
     fun requestDatePicker()
     fun requestContact()
     fun setDraft(draft: String)

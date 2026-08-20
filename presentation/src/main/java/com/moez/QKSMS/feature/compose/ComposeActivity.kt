@@ -65,6 +65,7 @@ import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
 import dev.octoshrimpy.quik.R
+import dev.octoshrimpy.quik.feature.gif.GifPickerActivity
 import dev.octoshrimpy.quik.common.ExternalNavigator
 import dev.octoshrimpy.quik.common.base.QkThemedActivity
 import dev.octoshrimpy.quik.common.util.DateFormatter
@@ -128,6 +129,7 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     override val attachIntent: Observable<Unit> by lazy { Observable.merge(binding.attach.clicks(), binding.shadeBackground.clicks()) }
     override val cameraIntent: Observable<Unit> by lazy { Observable.merge(binding.camera.clicks(), binding.cameraLabel.clicks()) }
     override val attachImageFileIntent: Observable<Unit> by lazy { Observable.merge(binding.gallery.clicks(), binding.galleryLabel.clicks()) }
+    override val attachGifIntent: Observable<Unit> by lazy { Observable.merge(binding.gif.clicks(), binding.gifLabel.clicks()) }
     override val attachAnyFileIntent: Observable<Unit> by lazy { Observable.merge(binding.attachAFileIcon.clicks(), binding.attachAFileLabel.clicks()) }
     override val scheduleIntent: Observable<Unit> by lazy { Observable.merge(binding.schedule.clicks(), binding.scheduleLabel.clicks()) }
     override val attachContactIntent: Observable<Unit> by lazy { Observable.merge(binding.contact.clicks(), binding.contactLabel.clicks()) }
@@ -738,6 +740,13 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
         startActivityForResult(Intent.createChooser(intent, null), requestCode)
     }
 
+    override fun requestGif() {
+        startActivityForResult(
+            Intent(this, GifPickerActivity::class.java),
+            ComposeView.ATTACH_GIF_REQUEST_CODE
+        )
+    }
+
     override fun setDraft(draft: String) {
         binding.message.setText(draft)
         binding.message.setSelection(draft.length)
@@ -913,6 +922,10 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
 
             ComposeView.ATTACH_CONTACT_REQUEST_CODE -> {
                 data?.data?.let(contactSelectedIntent::onNext)
+            }
+
+            ComposeView.ATTACH_GIF_REQUEST_CODE -> {
+                data?.data?.let(attachAnyFileSelectedIntent::onNext)
             }
 
             ComposeView.SPEECH_RECOGNITION_REQUEST_CODE -> {

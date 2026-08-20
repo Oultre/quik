@@ -29,6 +29,8 @@ import dev.octoshrimpy.quik.feature.contacts.ContactsActivityModule
 import dev.octoshrimpy.quik.feature.conversationinfo.ConversationInfoActivity
 import dev.octoshrimpy.quik.feature.gallery.GalleryActivity
 import dev.octoshrimpy.quik.feature.gallery.GalleryActivityModule
+import dev.octoshrimpy.quik.feature.gif.GifPickerActivity
+import dev.octoshrimpy.quik.feature.gif.GifPickerActivityModule
 import dev.octoshrimpy.quik.feature.main.MainActivity
 import dev.octoshrimpy.quik.feature.main.MainActivityModule
 import dev.octoshrimpy.quik.feature.messageutils.MessageUtilsActivity
@@ -66,6 +68,10 @@ abstract class ActivityBuilderModule {
     @ActivityScope
     @ContributesAndroidInjector(modules = [ContactsActivityModule::class])
     abstract fun bindContactsActivity(): ContactsActivity
+
+    @ActivityScope
+    @ContributesAndroidInjector(modules = [GifPickerActivityModule::class])
+    abstract fun bindGifPickerActivity(): GifPickerActivity
 
     @ActivityScope
     @ContributesAndroidInjector(modules = [])
