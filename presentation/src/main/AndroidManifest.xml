@@ -278,6 +278,25 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+
+        <!--
+          Backchannel: without these, "Add to contacts" and "View contact" silently do nothing on
+          Android 11+. Package visibility filtering makes Intent.resolveActivity() return null for
+          the contacts app unless we declare that we query for it, and QkNavigator's fallback
+          (createChooser on an intent with no visible targets) shows nothing at all.
+        -->
+        <intent>
+            <action android:name="android.intent.action.INSERT" />
+            <data android:mimeType="vnd.android.cursor.dir/contact" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.INSERT_OR_EDIT" />
+            <data android:mimeType="vnd.android.cursor.item/contact" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" />
+        </intent>
     </queries>
 
 </manifest>
