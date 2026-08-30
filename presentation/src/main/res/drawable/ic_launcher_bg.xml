@@ -3,9 +3,10 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Backchannel: full charcoal background so the icon fills the tile like other apps
-         (the launcher masks it to its system shape) -->
+    <!-- Backchannel: full-bleed background so the icon fills the tile like other apps (the
+         launcher masks it to its system shape). Slate rather than the previous charcoal #2A2D32,
+         which was so dark it disappeared into a dark wallpaper and read as a floating logo. -->
     <path
-        android:fillColor="#2A2D32"
+        android:fillColor="#4A5568"
         android:pathData="M0,0 H108 V108 H0 Z" />
 </vector>
