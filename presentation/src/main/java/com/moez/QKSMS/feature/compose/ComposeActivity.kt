@@ -731,12 +731,27 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
     }
 
     override fun requestGallery(mimeType: String, requestCode: Int) {
-        val intent = Intent(Intent.ACTION_PICK)
+        // ACTION_PICK means "choose an item from this data set", and it only works where something
+        // registers to handle that type -- MediaStore does for image/*, but nothing does for a
+        // wildcard, so "Attach a file" opened a picker that closed again immediately.
+        // ACTION_GET_CONTENT is the documented way to ask the user for an arbitrary file.
+        val action = when (mimeType) {
+            "*/*" -> Intent.ACTION_GET_CONTENT
+            else -> Intent.ACTION_PICK
+        }
+
+        val intent = Intent(action)
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             .addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
             .putExtra(Intent.EXTRA_LOCAL_ONLY, false)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             .setType(mimeType)
+            .apply {
+                // GET_CONTENT can return things that aren't openable streams; we read bytes from
+                // the Uri, so restrict it to ones we can actually open
+                if (action == Intent.ACTION_GET_CONTENT) addCategory(Intent.CATEGORY_OPENABLE)
+            }
+
         startActivityForResult(Intent.createChooser(intent, null), requestCode)
     }
 
