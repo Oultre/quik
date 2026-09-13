@@ -112,6 +112,8 @@ interface ComposeView : QkView<ComposeState> {
     fun requestCamera()
     fun requestGallery(mimeType: String, requestCode: Int)
     fun requestGif()
+    // Backchannel: warn that an attachment is too big to survive MMS, at attach time
+    fun showAttachmentTooLarge(name: String, sizeBytes: Long, limitBytes: Long)
     fun requestDatePicker()
     fun requestContact()
     fun setDraft(draft: String)

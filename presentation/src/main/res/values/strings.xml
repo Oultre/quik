@@ -90,6 +90,8 @@
     <string name="gif_picker_no_key">No GIF API key was set at build time. Add giphyApiKey to local.properties and rebuild.</string>
     <string name="gif_picker_failed">Could not attach that GIF</string>
     <string name="compose_attach_gif_cd">GIF</string>
+    <string name="compose_attachment_too_large_title">Attachment may be too large</string>
+    <string name="compose_attachment_too_large_body">"%1$s is %2$s, but MMS attachments are limited to about %3$s. Pictures get shrunk automatically; other files are sent as-is, so this one will probably be rejected by your carrier."</string>
     <string name="dialog_unbundle_message">Move %1$s out of Updates and back to your inbox?</string>
     <string name="main_fab_cd">Start new conversation</string>
     <string name="main_default_sms_title">Love texting again</string>

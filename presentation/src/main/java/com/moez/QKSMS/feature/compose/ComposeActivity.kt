@@ -64,6 +64,7 @@ import com.uber.autodispose.ObservableSubscribeProxy
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dagger.android.AndroidInjection
+import android.text.format.Formatter
 import dev.octoshrimpy.quik.R
 import dev.octoshrimpy.quik.feature.gif.GifPickerActivity
 import dev.octoshrimpy.quik.common.ExternalNavigator
@@ -760,6 +761,21 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             Intent(this, GifPickerActivity::class.java),
             ComposeView.ATTACH_GIF_REQUEST_CODE
         )
+    }
+
+    override fun showAttachmentTooLarge(name: String, sizeBytes: Long, limitBytes: Long) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.compose_attachment_too_large_title)
+            .setMessage(
+                getString(
+                    R.string.compose_attachment_too_large_body,
+                    name,
+                    Formatter.formatShortFileSize(this, sizeBytes),
+                    Formatter.formatShortFileSize(this, limitBytes)
+                )
+            )
+            .setPositiveButton(R.string.button_continue, null)
+            .show()
     }
 
     override fun setDraft(draft: String) {

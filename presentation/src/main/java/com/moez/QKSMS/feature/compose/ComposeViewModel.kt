@@ -18,6 +18,7 @@
  */
 package dev.octoshrimpy.quik.feature.compose
 
+import android.telephony.SmsManager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
@@ -900,9 +901,22 @@ class ComposeViewModel @Inject constructor(
             view.attachAnyFileSelectedIntent.map { uri -> Attachment(context, uri) },
             view.inputContentIntent.map { inputContent -> Attachment(context, inputContent = inputContent) }
         )
+            .withLatestFrom(state) { attachment, state -> attachment to state.subscription?.subscriptionId }
             .autoDisposable(view.scope())
-            .subscribe {
-                newState { copy(attachments = attachments + it, attaching = false) }
+            .subscribe { (attachment, subId) ->
+                newState { copy(attachments = attachments + attachment, attaching = false) }
+
+                // Backchannel: images get scaled down to fit the MMS budget on send, but every
+                // other attachment is sent at full size -- so an oversized one just fails at the
+                // carrier after the user has written their message. Say so now instead.
+                if (!attachment.isImage(context)) {
+                    val size = attachment.getSize(context)
+                    val limit = maxAttachmentBytes(subId ?: -1)
+
+                    if (size > limit) {
+                        view.showAttachmentTooLarge(attachment.getName(context), size, limit)
+                    }
+                }
             }
 
         // Set the scheduled time
@@ -1345,6 +1359,36 @@ class ComposeViewModel @Inject constructor(
             }
             .autoDisposable(view.scope())
             .subscribe()
+    }
+
+    /**
+     * Backchannel: the largest an attachment can be and still stand a chance of sending.
+     *
+     * Mirrors the budget in MessageRepositoryImpl.sendNewMessages: prefs.mmsSize is in KB, where 0
+     * means unlimited and -1 ("Automatic") defers to the carrier, with the same 0.9 headroom for the
+     * message body and MMS overhead. The carrier limit is read for the same subscription the send
+     * path uses -- the conversation's SIM, or the default SMS subscription when there is only one --
+     * so the warning and the actual send agree.
+     */
+    private fun maxAttachmentBytes(subId: Int): Long = when (val sizeKb = prefs.mmsSize.get()) {
+        0 -> Long.MAX_VALUE
+        -1 -> (carrierMaxMessageBytes(subId) * 0.9).toLong()
+        else -> (sizeKb * 1024L * 0.9).toLong()
+    }
+
+    private fun carrierMaxMessageBytes(subId: Int): Long = try {
+        val smsManager = subId.takeIf { it != -1 }
+            ?.let { SmsManager.getSmsManagerForSubscriptionId(it) }
+            ?: SmsManager.getDefault()
+
+        smsManager.carrierConfigValues
+            .getInt(SmsManager.MMS_CONFIG_MAX_MESSAGE_SIZE)
+            .takeIf { it > 0 }
+            ?.toLong()
+            ?: 300L * 1024
+    } catch (e: Exception) {
+        // No carrier config available (no SIM, restricted build): fall back to a typical cap
+        300L * 1024
     }
 
 }
