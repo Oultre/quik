@@ -55,6 +55,7 @@ import io.realm.Realm
 import io.realm.RealmList
 import io.realm.Sort
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -79,6 +80,9 @@ class SyncRepositoryImpl @Inject constructor(
 
     override val syncProgress: Subject<SyncRepository.SyncProgress> =
             BehaviorSubject.createDefault(SyncRepository.SyncProgress.Idle)
+
+    private val contactSyncRunning = AtomicBoolean(false)
+    private val contactSyncPending = AtomicBoolean(false)
 
     override fun syncMessages() {
 
@@ -352,29 +356,82 @@ class SyncRepositoryImpl @Inject constructor(
     }
 
     override fun syncContacts() {
-        // Load all the contacts
-        var contacts = getContacts()
+        // Contact changes arrive in bursts, and each one used to start its own full sync on its own
+        // thread. Overlapping requests now collapse into a single follow-up run
+        contactSyncPending.set(true)
+
+        // Whoever takes the flag runs until no request is left. The outer loop re-checks after
+        // releasing it, catching a request that slipped in between the last run and the release
+        while (contactSyncPending.get() && contactSyncRunning.compareAndSet(false, true)) {
+            try {
+                while (contactSyncPending.getAndSet(false)) {
+                    syncContactsOnce()
+                }
+            } finally {
+                contactSyncRunning.set(false)
+            }
+        }
+    }
+
+    private fun syncContactsOnce() {
+        // All the slow work happens before the write transaction: the contacts provider queries and
+        // matching recipients to contacts. The transaction holds Realm's only write lock, and an
+        // incoming SMS stuck waiting on it for 10 seconds is an ANR
+        val contacts = getContacts()
+        val groups = getContactGroups(contacts)
+        val findContact = contactMatcher(contacts)
 
         Realm.getDefaultInstance()?.use { realm ->
-            val recipients = realm.where(Recipient::class.java).findAll()
+            val matches = realm.where(Recipient::class.java).findAll()
+                    .associate { recipient -> recipient.id to findContact(recipient.address) }
 
             realm.executeTransaction {
                 realm.delete(Contact::class.java)
                 realm.delete(ContactGroup::class.java)
 
-                contacts = realm.copyToRealmOrUpdate(contacts)
-                realm.insertOrUpdate(getContactGroups(contacts))
+                val managedContacts = realm.copyToRealmOrUpdate(contacts).associateBy { it.lookupKey }
+                realm.insertOrUpdate(groups)
 
-                // Update all the recipients with the new contacts
-                recipients.forEach { recipient ->
-                    recipient.contact = contacts.find { contact ->
-                        contact.numbers.any { phoneNumberUtils.compare(recipient.address, it.address) }
+                // Update all the recipients with the new contacts. One created since the matching
+                // above is still matched here, which is cheap for a handful of addresses
+                realm.where(Recipient::class.java).findAll().forEach { recipient ->
+                    val lookupKey = when (recipient.id in matches) {
+                        true -> matches[recipient.id]
+                        false -> findContact(recipient.address)
                     }
+                    recipient.contact = lookupKey?.let(managedContacts::get)
                 }
-
-                realm.insertOrUpdate(recipients)
             }
+        }
+    }
 
+    /**
+     * Returns a lookup from an address to the lookupKey of the first contact with a matching number.
+     *
+     * Checking every address against every number was millions of [PhoneNumberUtils.compare] calls
+     * for a large address book. Numbers are bucketed by their last 7 dialable digits first, since a
+     * loose match has to share them, so only numbers in the same bucket get the full comparison.
+     * Buckets keep the contacts' order, so the first match is the same contact as before
+     */
+    private fun contactMatcher(contacts: List<Contact>): (String) -> String? {
+        val buckets = contacts
+                .flatMap { contact -> contact.numbers.map { number -> number.address to contact.lookupKey } }
+                .groupBy { (address, _) -> contactBucketKey(address) }
+
+        return { address ->
+            buckets[contactBucketKey(address)]
+                    ?.firstOrNull { (number, _) -> phoneNumberUtils.compare(address, number) }
+                    ?.second
+        }
+    }
+
+    private fun contactBucketKey(address: String): String {
+        val dialable = address.filter { it in '0'..'9' || it == '*' || it == '#' }
+
+        // Short codes and alphanumeric senders only ever match exactly, once normalized
+        return when (dialable.length >= 7) {
+            true -> dialable.takeLast(7)
+            false -> phoneNumberUtils.normalizeNumber(address).lowercase().removePrefix("+")
         }
     }
 
@@ -424,10 +481,11 @@ class SyncRepositoryImpl @Inject constructor(
                 ?.map(cursorToContactGroup::map)
                 .orEmpty()
 
+        val contactsByKey = contacts.associateBy { contact -> contact.lookupKey }
         groups.forEach { group ->
             group.contacts.addAll(groupMembers
                     .filter { member -> member.groupId == group.id }
-                    .mapNotNull { member -> contacts.find { contact -> contact.lookupKey == member.lookupKey } })
+                    .mapNotNull { member -> contactsByKey[member.lookupKey] })
         }
 
         return groups
