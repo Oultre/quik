@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        style="@style/Toolbar"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <dev.octoshrimpy.quik.common.widget.QkTextView
+            android:id="@+id/toolbarTitle"
+            style="@style/ToolbarText"
+            tools:text="Mass text" />
+
+    </androidx.appcompat.widget.Toolbar>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="16dp">
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                style="@style/PreferenceCategory"
+                android:layout_marginStart="16dp"
+                android:text="@string/mass_text_message_title" />
+
+            <dev.octoshrimpy.quik.common.widget.QkEditText
+                android:id="@+id/body"
+                style="@style/TextPrimary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:gravity="top"
+                android:hint="@string/mass_text_message_hint"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="3" />
+
+            <Button
+                android:id="@+id/insertFirstName"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/mass_text_insert_first_name" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/preview"
+                style="@style/TextSecondary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                tools:text="Sarah gets: Hi Sarah, practice moved to 4:30"
+                tools:visibility="visible" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="?android:attr/divider" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/recipientsTitle"
+                style="@style/PreferenceCategory"
+                android:layout_marginStart="16dp"
+                tools:text="24 recipients" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/recipientsEmpty"
+                style="@style/TextSecondary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:text="@string/mass_text_recipients_empty" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recipients"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:itemCount="3"
+                tools:listitem="@layout/mass_text_recipient_item" />
+
+            <Button
+                android:id="@+id/addRecipients"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/mass_text_add_recipients" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:background="@drawable/ab_shadow"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

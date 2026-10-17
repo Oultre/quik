@@ -21,6 +21,8 @@ package dev.octoshrimpy.quik.manager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import dev.octoshrimpy.quik.receiver.ConversationReminderReceiver
 import dev.octoshrimpy.quik.receiver.SendScheduledMessageReceiver
 import javax.inject.Inject
 
@@ -31,9 +33,27 @@ class AlarmManagerImpl @Inject constructor(private val context: Context) : Alarm
         return PendingIntent.getBroadcast(context, id.toInt(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
+    override fun getReminderIntent(threadId: Long): PendingIntent {
+        val intent = Intent(context, ConversationReminderReceiver::class.java)
+            .putExtra(ConversationReminderReceiver.EXTRA_THREAD_ID, threadId)
+        return PendingIntent.getBroadcast(context, threadId.toInt(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
     override fun setAlarm(date: Long, intent: PendingIntent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-        alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+
+        // Exact alarms need a permission the user can revoke, and asking for an exact one without
+        // it throws. A slightly late alarm beats none
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, date, intent)
+        }
+    }
+
+    override fun cancelAlarm(intent: PendingIntent) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        alarmManager.cancel(intent)
     }
 
 }

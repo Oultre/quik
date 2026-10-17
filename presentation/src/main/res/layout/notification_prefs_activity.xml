@@ -100,6 +100,78 @@
                 android:layout_height="wrap_content"
                 app:title="@string/settings_ringtone_title" />
 
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/quietHoursBypass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:summary="@string/settings_quiet_hours_bypass_summary"
+                app:title="@string/settings_quiet_hours_bypass_title"
+                app:widget="@layout/settings_switch_widget" />
+
+            <View
+                android:id="@+id/quietHoursDivider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="?android:attr/divider" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/quietHoursTitle"
+                style="@style/PreferenceCategory"
+                android:text="@string/settings_category_quiet_hours" />
+
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/quietHours"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:title="@string/settings_quiet_hours_title"
+                app:widget="@layout/settings_switch_widget"
+                tools:summary="Notifications arrive silently, except conversations set to ring" />
+
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/quietHoursStart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:title="@string/settings_quiet_hours_start_title"
+                tools:summary="10:00 PM" />
+
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/quietHoursEnd"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:title="@string/settings_quiet_hours_end_title"
+                tools:summary="7:00 AM" />
+
+            <View
+                android:id="@+id/codesDivider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="?android:attr/divider" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                android:id="@+id/codesTitle"
+                style="@style/PreferenceCategory"
+                android:text="@string/settings_category_verification_codes" />
+
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/verificationCodeCopy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:summary="@string/settings_verification_code_copy_summary"
+                app:title="@string/settings_verification_code_copy_title"
+                app:widget="@layout/settings_switch_widget" />
+
+            <dev.octoshrimpy.quik.common.widget.PreferenceView
+                android:id="@+id/verificationCodeCleanup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:summary="@string/settings_verification_code_cleanup_summary"
+                app:title="@string/settings_verification_code_cleanup_title"
+                app:widget="@layout/settings_switch_widget" />
+
             <View
                 android:id="@+id/actionsDivider"
                 android:layout_width="match_parent"

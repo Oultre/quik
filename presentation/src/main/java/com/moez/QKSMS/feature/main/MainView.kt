@@ -43,6 +43,8 @@ interface MainView : QkView<MainState> {
     val swipeConversationIntent: Observable<Pair<Long, Int>>
     // Backchannel: thread id of a conversation to move out of the Updates feed and back to the inbox
     val unbundleConversationIntent: Observable<Long>
+    // Backchannel: when a "Remind me" reminder should go off, or 0 to remove it
+    val reminderSelectedIntent: Observable<Long>
     val changelogMoreIntent: Observable<*>
     val undoArchiveIntent: Observable<Unit>
     val snackbarButtonIntent: Observable<Unit>
@@ -58,9 +60,11 @@ interface MainView : QkView<MainState> {
     fun showRenameDialog(conversationName: String)
     // Backchannel: confirm moving a sender out of the Updates feed
     fun showUnbundleDialog(threadId: Long, senderName: String)
+    // Backchannel: pick when to be reminded about the selected conversations
+    fun showReminderDialog(hasReminder: Boolean)
     fun showChangelog(changelog: ChangelogManager.CumulativeChangelog)
     fun showArchivedSnackbar(countConversationsArchived: Int, isArchiving: Boolean)
     fun drawerToggled(opened: Boolean)
 }
 
-enum class NavItem { BACK, INBOX, ARCHIVED, UPDATES, BACKUP, SCHEDULED, BLOCKING, MESSAGE_UTILS, SETTINGS, ABOUT, PLUS, HELP, INVITE }
+enum class NavItem { BACK, INBOX, ARCHIVED, UPDATES, MASS_TEXT, BACKUP, SCHEDULED, BLOCKING, MESSAGE_UTILS, SETTINGS, ABOUT, PLUS, HELP, INVITE }

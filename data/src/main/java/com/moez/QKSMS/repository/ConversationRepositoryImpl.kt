@@ -62,8 +62,9 @@ class ConversationRepositoryImpl @Inject constructor(
         incognito: Boolean,
         bundled: Boolean
     ): RealmQuery<Conversation> {
-        val sortOrder = mutableListOf("pinned", "draft", "lastMessage.date")
-        val sortDirections = mutableListOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
+        // Backchannel: a conversation whose reminder has gone off sits just below the pinned ones
+        val sortOrder = mutableListOf("pinned", "reminded", "draft", "lastMessage.date")
+        val sortDirections = mutableListOf(Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING, Sort.DESCENDING)
 
         if (unreadAtTop) {
             sortOrder.add(0, "lastMessage.read")
@@ -488,6 +489,44 @@ class ConversationRepositoryImpl @Inject constructor(
             realm.executeTransaction { conversations.forEach { it.bundled = false } }
         }
 
+    override fun setReminder(threadIds: Collection<Long>, at: Long) =
+        Realm.getDefaultInstance().use { realm ->
+            val conversations = realm.where(Conversation::class.java)
+                .anyOf("id", threadIds.toLongArray())
+                .findAll()
+
+            realm.executeTransaction {
+                conversations.forEach { conversation ->
+                    conversation.reminderAt = at
+                    conversation.reminded = false
+                }
+            }
+        }
+
+    override fun fireReminder(threadId: Long): Boolean =
+        Realm.getDefaultInstance().use { realm ->
+            realm.refresh()
+            val conversation = realm.where(Conversation::class.java)
+                .equalTo("id", threadId)
+                .greaterThan("reminderAt", 0L)
+                .findFirst()
+                ?: return@use false
+
+            realm.executeTransaction {
+                conversation.reminderAt = 0
+                conversation.reminded = true
+            }
+            true
+        }
+
+    override fun getPendingReminders(): Map<Long, Long> =
+        Realm.getDefaultInstance().use { realm ->
+            realm.where(Conversation::class.java)
+                .greaterThan("reminderAt", 0L)
+                .findAll()
+                .associate { conversation -> conversation.id to conversation.reminderAt }
+        }
+
     override fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?) =
         Realm.getDefaultInstance().use { realm ->
             val conversations = realm.where(Conversation::class.java)
@@ -581,11 +620,14 @@ class ConversationRepositoryImpl @Inject constructor(
 
                         // Backchannel: preserve any existing bundle choice for this thread so a
                         // re-create can't clobber a manual add/remove; otherwise auto-bundle
-                        // brand-new automated (shortcode / alphanumeric) senders.
-                        val existingBundled = realm.where(Conversation::class.java)
+                        // brand-new automated (shortcode / alphanumeric) senders. Same for a
+                        // pending or fired reminder
+                        val existing = realm.where(Conversation::class.java)
                             .equalTo("id", threadId)
                             .findFirst()
-                            ?.bundled
+                        val existingBundled = existing?.bundled
+                        val existingReminderAt = existing?.reminderAt ?: 0
+                        val existingReminded = existing?.reminded ?: false
 
                         conversation.apply {
                             recipients.clear()
@@ -601,6 +643,8 @@ class ConversationRepositoryImpl @Inject constructor(
                                 .findFirst()
 
                             bundled = existingBundled ?: shouldAutoBundle(this)
+                            reminderAt = existingReminderAt
+                            reminded = existingReminded
                         }
 
                         realm.executeTransaction { it.insertOrUpdate(conversation) }

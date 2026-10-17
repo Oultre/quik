@@ -20,14 +20,18 @@ package dev.octoshrimpy.quik.feature.main
 
 import android.Manifest
 import android.animation.ObjectAnimator
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
@@ -69,6 +73,8 @@ import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class MainActivity : QkThemedActivity(), MainView {
@@ -102,6 +108,7 @@ class MainActivity : QkThemedActivity(), MainView {
                 binding.drawer.inbox.clicks().map { NavItem.INBOX },
                 binding.drawer.archived.clicks().map { NavItem.ARCHIVED },
                 binding.drawer.updates.clicks().map { NavItem.UPDATES },
+                binding.drawer.massText.clicks().map { NavItem.MASS_TEXT },
                 binding.drawer.backup.clicks().map { NavItem.BACKUP },
                 binding.drawer.scheduled.clicks().map { NavItem.SCHEDULED },
                 binding.drawer.blocking.clicks().map { NavItem.BLOCKING },
@@ -121,6 +128,7 @@ class MainActivity : QkThemedActivity(), MainView {
     override val renameConversationIntent: Subject<String> = PublishSubject.create()
     override val swipeConversationIntent by lazy { itemTouchCallback.swipes }
     override val unbundleConversationIntent: Subject<Long> = PublishSubject.create()
+    override val reminderSelectedIntent: Subject<Long> = PublishSubject.create()
     override val changelogMoreIntent by lazy { changelogDialog.moreClicks }
     override val undoArchiveIntent: Subject<Unit> = PublishSubject.create()
     override val snackbarButtonIntent: Subject<Unit> = PublishSubject.create()
@@ -283,6 +291,7 @@ class MainActivity : QkThemedActivity(), MainView {
             findItem(R.id.add)?.isVisible = addContact && selectedConversations != 0
             findItem(R.id.pin)?.isVisible = markPinned && selectedConversations != 0
             findItem(R.id.unpin)?.isVisible = !markPinned && selectedConversations != 0
+            findItem(R.id.remind)?.isVisible = selectedConversations != 0
             findItem(R.id.read)?.isVisible = ( markRead && selectedConversations != 0 ) ||
                     selectedConversations > 1
             findItem(R.id.unread)?.isVisible = ( !markRead && selectedConversations != 0 ) ||
@@ -502,6 +511,68 @@ class MainActivity : QkThemedActivity(), MainView {
             }
             .setNegativeButton(R.string.button_cancel, null)
             .show()
+    }
+
+    override fun showReminderDialog(hasReminder: Boolean) {
+        val timeFormat = DateFormat.getTimeFormat(this)
+
+        fun todayAt(hour: Int) = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        fun remindAt(millis: Long) = reminderSelectedIntent.onNext(millis)
+
+        val now = System.currentTimeMillis()
+        val choices = mutableListOf<Pair<String, () -> Unit>>()
+        choices += getString(R.string.reminder_in_one_hour) to { remindAt(now + TimeUnit.HOURS.toMillis(1)) }
+        choices += getString(R.string.reminder_in_three_hours) to { remindAt(now + TimeUnit.HOURS.toMillis(3)) }
+
+        // "This evening" stops making sense within the hour before it
+        val evening = todayAt(18)
+        if (now < evening.timeInMillis - TimeUnit.HOURS.toMillis(1)) {
+            choices += getString(R.string.reminder_this_evening, timeFormat.format(evening.time)) to
+                    { remindAt(evening.timeInMillis) }
+        }
+
+        val tomorrow = todayAt(8).apply { add(Calendar.DAY_OF_YEAR, 1) }
+        choices += getString(R.string.reminder_tomorrow_morning, timeFormat.format(tomorrow.time)) to
+                { remindAt(tomorrow.timeInMillis) }
+
+        choices += getString(R.string.reminder_pick) to { showReminderTimePicker() }
+
+        if (hasReminder) {
+            choices += getString(R.string.reminder_remove) to { remindAt(0) }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reminder_title)
+            .setItems(choices.map { (label, _) -> label }.toTypedArray()) { _, which -> choices[which].second() }
+            .setNegativeButton(R.string.button_cancel, null)
+            .show()
+    }
+
+    private fun showReminderTimePicker() {
+        val now = Calendar.getInstance()
+
+        DatePickerDialog(this, { _, year, month, day ->
+            TimePickerDialog(this, { _, hour, minute ->
+                val at = Calendar.getInstance().apply {
+                    set(year, month, day, hour, minute, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                // A time that's already passed would go off immediately
+                when (at.timeInMillis > System.currentTimeMillis()) {
+                    true -> reminderSelectedIntent.onNext(at.timeInMillis)
+                    false -> Toast.makeText(this, R.string.reminder_in_past, Toast.LENGTH_SHORT).show()
+                }
+            }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), DateFormat.is24HourFormat(this)).show()
+        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).apply {
+            datePicker.minDate = now.timeInMillis
+        }.show()
     }
 
     override fun showRenameDialog(conversationName: String) =

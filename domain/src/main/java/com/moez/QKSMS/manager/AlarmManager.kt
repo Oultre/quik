@@ -24,6 +24,13 @@ interface AlarmManager {
 
     fun getScheduledMessageIntent(id: Long): PendingIntent
 
+    /**
+     * Backchannel: fires a conversation's "Remind me" reminder
+     */
+    fun getReminderIntent(threadId: Long): PendingIntent
+
     fun setAlarm(date: Long, intent: PendingIntent)
+
+    fun cancelAlarm(intent: PendingIntent)
 
 }

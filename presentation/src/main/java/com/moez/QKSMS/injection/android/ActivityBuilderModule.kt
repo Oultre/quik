@@ -33,6 +33,8 @@ import dev.octoshrimpy.quik.feature.gif.GifPickerActivity
 import dev.octoshrimpy.quik.feature.gif.GifPickerActivityModule
 import dev.octoshrimpy.quik.feature.main.MainActivity
 import dev.octoshrimpy.quik.feature.main.MainActivityModule
+import dev.octoshrimpy.quik.feature.masstext.MassTextActivity
+import dev.octoshrimpy.quik.feature.masstext.MassTextActivityModule
 import dev.octoshrimpy.quik.feature.messageutils.MessageUtilsActivity
 import dev.octoshrimpy.quik.feature.notificationprefs.NotificationPrefsActivity
 import dev.octoshrimpy.quik.feature.notificationprefs.NotificationPrefsActivityModule
@@ -72,6 +74,10 @@ abstract class ActivityBuilderModule {
     @ActivityScope
     @ContributesAndroidInjector(modules = [GifPickerActivityModule::class])
     abstract fun bindGifPickerActivity(): GifPickerActivity
+
+    @ActivityScope
+    @ContributesAndroidInjector(modules = [MassTextActivityModule::class])
+    abstract fun bindMassTextActivity(): MassTextActivity
 
     @ActivityScope
     @ContributesAndroidInjector(modules = [])

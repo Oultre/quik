@@ -18,6 +18,7 @@
  */
 package dev.octoshrimpy.quik.feature.main
 
+import android.content.Context
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
@@ -39,6 +40,7 @@ import dev.octoshrimpy.quik.interactor.MarkUnincognito
 import dev.octoshrimpy.quik.interactor.MarkUnpinned
 import dev.octoshrimpy.quik.interactor.MarkUnread
 import dev.octoshrimpy.quik.interactor.MigratePreferences
+import dev.octoshrimpy.quik.interactor.SetReminder
 import dev.octoshrimpy.quik.interactor.SpeakThreads
 import dev.octoshrimpy.quik.interactor.SyncContacts
 import dev.octoshrimpy.quik.interactor.SyncMessages
@@ -55,6 +57,7 @@ import dev.octoshrimpy.quik.repository.MessageRepository
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import dev.octoshrimpy.quik.repository.SyncRepository
 import dev.octoshrimpy.quik.util.Preferences
+import dev.octoshrimpy.quik.worker.MissedMessageWorker
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.schedulers.Schedulers
@@ -67,6 +70,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class MainViewModel @Inject constructor(
+    context: Context,
     billingManager: BillingManager,
     contactAddedListener: ContactAddedListener,
     markAllSeen: MarkAllSeen,
@@ -87,6 +91,7 @@ class MainViewModel @Inject constructor(
     private val markUnpinned: MarkUnpinned,
     private val markUnread: MarkUnread,
     private val scheduledMessageRepo: ScheduledMessageRepository,
+    private val setReminder: SetReminder,
     private val speakThreads: SpeakThreads,
     private val navigator: Navigator,
     private val externalNavigator: ExternalNavigator,
@@ -111,8 +116,13 @@ class MainViewModel @Inject constructor(
         disposables += markUnbundled
         disposables += markUnincognito
         disposables += migratePreferences
+        disposables += setReminder
         disposables += syncContacts
         disposables += syncMessages
+
+        // Backchannel: catch any message whose receive was interrupted, rather than waiting for
+        // the next hourly check
+        MissedMessageWorker.runNow(context)
 
         // Show the syncing UI
         disposables += syncRepository.syncProgress
@@ -390,6 +400,7 @@ class MainViewModel @Inject constructor(
                             }
                             else -> newState { copy(hasError = true) }
                         }
+                        NavItem.MASS_TEXT -> navigator.showMassText()
                         NavItem.BACKUP -> navigator.showBackup()
                         NavItem.SCHEDULED -> navigator.showScheduled(null)
                         NavItem.BLOCKING -> navigator.showBlockedConversations()
@@ -467,6 +478,26 @@ class MainViewModel @Inject constructor(
                 .filter { itemId -> itemId == R.id.pin }
                 .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
                     markPinned.execute(conversations.toList())
+                    view.clearSelection()
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        // Backchannel: "Remind me" offers to remove a reminder only when one of the selected
+        // conversations has one
+        view.optionsItemIntent
+                .filter { itemId -> itemId == R.id.remind }
+                .withLatestFrom(view.conversationsSelectedIntent) { _, conversations ->
+                    view.showReminderDialog(conversations.any { threadId ->
+                        conversationRepo.getConversation(threadId)?.reminderAt?.let { it > 0 } == true
+                    })
+                }
+                .autoDisposable(view.scope())
+                .subscribe()
+
+        view.reminderSelectedIntent
+                .withLatestFrom(view.conversationsSelectedIntent) { at, conversations ->
+                    setReminder.execute(SetReminder.Params(conversations.toList(), at))
                     view.clearSelection()
                 }
                 .autoDisposable(view.scope())

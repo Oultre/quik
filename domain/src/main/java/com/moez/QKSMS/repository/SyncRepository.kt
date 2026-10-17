@@ -36,6 +36,14 @@ interface SyncRepository {
 
     fun syncMessage(uri: Uri, messageId: Long = 0): Message?
 
+    /**
+     * Backchannel: copies in received messages, dated between [from] and [to], that are in the
+     * system's SMS/MMS store but missing from ours. Receiving writes to the system store first, so
+     * a receive that gets interrupted (the app killed by an ANR, say) leaves exactly this behind.
+     * Returns the messages that were recovered
+     */
+    fun recoverMissedMessages(from: Long, to: Long): List<Message>
+
     fun syncContacts()
 
 }

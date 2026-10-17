@@ -126,6 +126,9 @@
         <activity android:name=".feature.backup.BackupActivity" />
         <activity android:name=".feature.contacts.ContactsActivity" />
         <activity android:name=".feature.gif.GifPickerActivity" />
+        <activity
+            android:name=".feature.masstext.MassTextActivity"
+            android:windowSoftInputMode="adjustResize" />
 
         <receiver
             android:name=".receiver.BootReceiver"
@@ -168,6 +171,8 @@
         <receiver android:name=".receiver.DeleteMessagesReceiver" />
         <receiver android:name=".receiver.BlockThreadReceiver" />
         <receiver android:name=".receiver.MessageMarkReceiver" />
+        <receiver android:name=".receiver.CopyCodeReceiver" />
+        <receiver android:name=".receiver.ConversationReminderReceiver" />
         <receiver
             android:name=".receiver.SpeakThreadsReceiver"
             android:exported="true">

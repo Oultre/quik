@@ -31,6 +31,7 @@ import dev.octoshrimpy.quik.feature.compose.ComposeActivity
 import dev.octoshrimpy.quik.feature.conversationinfo.ConversationInfoActivity
 import dev.octoshrimpy.quik.feature.gallery.GalleryActivity
 import dev.octoshrimpy.quik.feature.main.MainActivity
+import dev.octoshrimpy.quik.feature.masstext.MassTextActivity
 import dev.octoshrimpy.quik.feature.messageutils.MessageUtilsActivity
 import dev.octoshrimpy.quik.feature.plus.PlusActivity
 import dev.octoshrimpy.quik.feature.scheduled.ScheduledActivity
@@ -127,6 +128,10 @@ class Navigator @Inject constructor(
 
     fun showBackup() {
         startActivity(Intent(context, BackupActivity::class.java))
+    }
+
+    fun showMassText() {
+        startActivity(Intent(context, MassTextActivity::class.java))
     }
 
     fun showScheduled(conversationId: Long?) {

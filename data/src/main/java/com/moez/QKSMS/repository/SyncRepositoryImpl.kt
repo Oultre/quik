@@ -23,6 +23,7 @@ import android.content.ContentUris
 import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
+import android.provider.BaseColumns
 import android.provider.Telephony
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import dev.octoshrimpy.quik.extensions.forEach
@@ -354,6 +355,49 @@ class SyncRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    override fun recoverMissedMessages(from: Long, to: Long): List<Message> {
+        // The SMS store dates in milliseconds, the MMS store in seconds. Only fully downloaded MMS
+        // count; a notification of one still waiting to download isn't a message yet
+        val sms = getProviderIds(Telephony.Sms.CONTENT_URI,
+            "${Telephony.Sms.TYPE} = ${Telephony.Sms.MESSAGE_TYPE_INBOX} AND ${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} < ?",
+            from, to)
+        val mms = getProviderIds(Telephony.Mms.CONTENT_URI,
+            "${Telephony.Mms.MESSAGE_BOX} = ${Telephony.Mms.MESSAGE_BOX_INBOX} AND ${Telephony.Mms.MESSAGE_TYPE} = 132 AND ${Telephony.Mms.DATE} >= ? AND ${Telephony.Mms.DATE} < ?",
+            from / 1000, to / 1000)
+
+        val missing = Realm.getDefaultInstance().use { realm ->
+            realm.refresh()
+
+            fun missingFrom(type: String, ids: List<Long>, uri: Uri): List<Uri> {
+                if (ids.isEmpty()) return listOf()
+
+                val known = realm.where(Message::class.java)
+                    .equalTo("type", type)
+                    .`in`("contentId", ids.toTypedArray())
+                    .findAll()
+                    .map { message -> message.contentId }
+                    .toSet()
+
+                return ids.filterNot(known::contains).map { id -> ContentUris.withAppendedId(uri, id) }
+            }
+
+            missingFrom(Message.TYPE_SMS, sms, Telephony.Sms.CONTENT_URI) +
+                    missingFrom(Message.TYPE_MMS, mms, Telephony.Mms.CONTENT_URI)
+        }
+
+        if (missing.isNotEmpty()) {
+            Timber.i("recovering ${missing.size} messages that were never saved")
+        }
+
+        return missing.mapNotNull { uri -> syncMessage(uri) }
+    }
+
+    private fun getProviderIds(uri: Uri, selection: String, from: Long, to: Long): List<Long> =
+        tryOrNull(false) {
+            contentResolver.query(uri, arrayOf(BaseColumns._ID), selection,
+                arrayOf(from.toString(), to.toString()), null)
+        }?.use { cursor -> cursor.map { it.getLong(0) } } ?: listOf()
 
     override fun syncContacts() {
         // Contact changes arrive in bursts, and each one used to start its own full sync on its own

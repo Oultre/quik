@@ -29,6 +29,16 @@ interface NotificationManager {
 
     fun notifyFailed(threadId: Long)
 
+    /**
+     * Backchannel: a conversation's "Remind me" reminder has gone off
+     */
+    fun notifyReminder(threadId: Long)
+
+    /**
+     * Backchannel: a mass text has finished sending
+     */
+    fun notifyMassTextSent(recipientCount: Int)
+
     fun createNotificationChannel(threadId: Long = 0L)
 
     fun buildNotificationChannelId(threadId: Long): String

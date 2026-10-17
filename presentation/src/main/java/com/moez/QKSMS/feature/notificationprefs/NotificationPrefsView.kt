@@ -30,8 +30,12 @@ interface NotificationPrefsView : QkView<NotificationPrefsState> {
     val previewModeSelectedIntent: Subject<Int>
     val ringtoneSelectedIntent: Observable<String>
     val actionsSelectedIntent: Subject<Int>
+    val quietHoursStartSelectedIntent: Observable<Int>
+    val quietHoursEndSelectedIntent: Observable<Int>
 
     fun showPreviewModeDialog()
     fun showRingtonePicker(default: Uri?)
     fun showActionDialog(selected: Int)
+    fun showQuietHoursStartPicker(minuteOfDay: Int)
+    fun showQuietHoursEndPicker(minuteOfDay: Int)
 }

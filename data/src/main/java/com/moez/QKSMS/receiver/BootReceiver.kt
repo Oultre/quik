@@ -22,18 +22,22 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import dagger.android.AndroidInjection
+import dev.octoshrimpy.quik.interactor.UpdateReminderAlarms
 import dev.octoshrimpy.quik.interactor.UpdateScheduledMessageAlarms
 import javax.inject.Inject
 
 class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var updateScheduledMessageAlarms: UpdateScheduledMessageAlarms
+    @Inject lateinit var updateReminderAlarms: UpdateReminderAlarms
 
     override fun onReceive(context: Context, intent: Intent?) {
         AndroidInjection.inject(this, context)
 
         val result = goAsync()
-        updateScheduledMessageAlarms.execute(Unit) { result.finish() }
+        updateScheduledMessageAlarms.execute(Unit) {
+            updateReminderAlarms.execute(Unit) { result.finish() }
+        }
     }
 
 }

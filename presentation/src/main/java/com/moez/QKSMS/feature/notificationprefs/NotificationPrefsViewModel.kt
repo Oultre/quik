@@ -21,6 +21,7 @@ package dev.octoshrimpy.quik.feature.notificationprefs
 import android.content.Context
 import android.media.RingtoneManager
 import android.net.Uri
+import android.text.format.DateFormat
 import com.uber.autodispose.android.lifecycle.scope
 import com.uber.autodispose.autoDisposable
 import dev.octoshrimpy.quik.R
@@ -32,6 +33,7 @@ import dev.octoshrimpy.quik.util.Preferences
 import io.reactivex.Flowable
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.schedulers.Schedulers
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -48,6 +50,7 @@ class NotificationPrefsViewModel @Inject constructor(
     private val wake = prefs.wakeScreen(threadId)
     private val vibration = prefs.vibration(threadId)
     private val ringtone = prefs.ringtone(threadId)
+    private val quietHoursBypass = prefs.quietHoursBypass(threadId)
 
     init {
         disposables += Flowable.just(threadId)
@@ -98,6 +101,34 @@ class NotificationPrefsViewModel @Inject constructor(
 
         disposables += prefs.qkreplyTapDismiss.asObservable()
                 .subscribe { enabled -> newState { copy(qkReplyTapDismiss = enabled) } }
+
+        disposables += prefs.quietHours.asObservable()
+                .subscribe { enabled -> newState { copy(quietHoursEnabled = enabled) } }
+
+        disposables += prefs.quietHoursStart.asObservable()
+                .map(::formatMinuteOfDay)
+                .subscribe { time -> newState { copy(quietHoursStart = time) } }
+
+        disposables += prefs.quietHoursEnd.asObservable()
+                .map(::formatMinuteOfDay)
+                .subscribe { time -> newState { copy(quietHoursEnd = time) } }
+
+        disposables += quietHoursBypass.asObservable()
+                .subscribe { enabled -> newState { copy(quietHoursBypass = enabled) } }
+
+        disposables += prefs.verificationCodeCopy.asObservable()
+                .subscribe { enabled -> newState { copy(verificationCodeCopy = enabled) } }
+
+        disposables += prefs.verificationCodeCleanup.asObservable()
+                .subscribe { enabled -> newState { copy(verificationCodeCleanup = enabled) } }
+    }
+
+    private fun formatMinuteOfDay(minuteOfDay: Int): String {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, minuteOfDay / 60)
+            set(Calendar.MINUTE, minuteOfDay % 60)
+        }
+        return DateFormat.getTimeFormat(context).format(calendar.time)
     }
 
     override fun bindView(view: NotificationPrefsView) {
@@ -132,8 +163,28 @@ class NotificationPrefsViewModel @Inject constructor(
                         R.id.qkreply -> prefs.qkreply.set(!prefs.qkreply.get())
 
                         R.id.qkreplyTapDismiss -> prefs.qkreplyTapDismiss.set(!prefs.qkreplyTapDismiss.get())
+
+                        R.id.quietHours -> prefs.quietHours.set(!prefs.quietHours.get())
+
+                        R.id.quietHoursStart -> view.showQuietHoursStartPicker(prefs.quietHoursStart.get())
+
+                        R.id.quietHoursEnd -> view.showQuietHoursEndPicker(prefs.quietHoursEnd.get())
+
+                        R.id.quietHoursBypass -> quietHoursBypass.set(!quietHoursBypass.get())
+
+                        R.id.verificationCodeCopy -> prefs.verificationCodeCopy.set(!prefs.verificationCodeCopy.get())
+
+                        R.id.verificationCodeCleanup -> prefs.verificationCodeCleanup.set(!prefs.verificationCodeCleanup.get())
                     }
                 }
+
+        view.quietHoursStartSelectedIntent
+                .autoDisposable(view.scope())
+                .subscribe(prefs.quietHoursStart::set)
+
+        view.quietHoursEndSelectedIntent
+                .autoDisposable(view.scope())
+                .subscribe(prefs.quietHoursEnd::set)
 
         view.previewModeSelectedIntent
                 .autoDisposable(view.scope())

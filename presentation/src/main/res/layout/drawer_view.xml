@@ -79,6 +79,21 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/massText"
+            style="@style/DrawerRow">
+
+            <ImageView
+                style="@style/DrawerIcon"
+                android:src="@drawable/ic_people_black_24dp"
+                app:tint="?android:attr/textColorSecondary" />
+
+            <dev.octoshrimpy.quik.common.widget.QkTextView
+                style="@style/DrawerText"
+                android:text="@string/drawer_mass_text" />
+
+        </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

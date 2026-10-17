@@ -45,6 +45,7 @@ import dev.octoshrimpy.quik.migration.QkMigration
 import dev.octoshrimpy.quik.migration.QkRealmMigration
 import dev.octoshrimpy.quik.util.NightModeManager
 import dev.octoshrimpy.quik.worker.HousekeepingWorker
+import dev.octoshrimpy.quik.worker.MissedMessageWorker
 import io.realm.Realm
 import io.realm.RealmConfiguration
 import kotlinx.coroutines.Dispatchers
@@ -129,6 +130,7 @@ class QKApplication : Application(), HasActivityInjector, HasBroadcastReceiverIn
 
         // register, or re-register, housekeeping work manager
         HousekeepingWorker.register(applicationContext)
+        MissedMessageWorker.register(applicationContext)
     }
 
     override fun activityInjector(): AndroidInjector<Activity> {

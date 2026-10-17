@@ -102,6 +102,22 @@ interface ConversationRepository {
 
     fun markUnbundled(vararg threadIds: Long)
 
+    /**
+     * Backchannel: sets a "Remind me" reminder due at [at], or clears it when [at] is 0
+     */
+    fun setReminder(threadIds: Collection<Long>, at: Long)
+
+    /**
+     * Backchannel: marks a due reminder as gone off, so the conversation sits at the top of the
+     * inbox until it's read. Returns false if there was no reminder to fire, e.g. it was cleared
+     */
+    fun fireReminder(threadId: Long): Boolean
+
+    /**
+     * Backchannel: thread ids mapped to when their reminder is due
+     */
+    fun getPendingReminders(): Map<Long, Long>
+
     fun markBlocked(threadIds: Collection<Long>, blockingClient: Int, blockReason: String?)
 
     fun markUnblocked(vararg threadIds: Long)

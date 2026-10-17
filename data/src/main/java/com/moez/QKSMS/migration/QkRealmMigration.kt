@@ -37,7 +37,7 @@ class QkRealmMigration @Inject constructor(
 ) : RealmMigration {
 
     companion object {
-        const val SCHEMA_VERSION: Long = 17
+        const val SCHEMA_VERSION: Long = 18
     }
 
     @SuppressLint("ApplySharedPref")
@@ -316,6 +316,20 @@ class QkRealmMigration @Inject constructor(
             if (realm.schema.get("Conversation")?.hasField("bundled") == false) {
                 realm.schema.get("Conversation")
                     ?.addField("bundled", Boolean::class.java, FieldAttribute.REQUIRED, FieldAttribute.INDEXED)
+            }
+
+            version++
+        }
+
+        if (version == 17L) {
+            // Backchannel: "Remind me" on a conversation
+            realm.schema.get("Conversation")?.let { conversation ->
+                if (!conversation.hasField("reminderAt")) {
+                    conversation.addField("reminderAt", Long::class.java, FieldAttribute.REQUIRED)
+                }
+                if (!conversation.hasField("reminded")) {
+                    conversation.addField("reminded", Boolean::class.java, FieldAttribute.REQUIRED, FieldAttribute.INDEXED)
+                }
             }
 
             version++

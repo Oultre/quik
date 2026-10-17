@@ -64,6 +64,16 @@
     <string name="main_menu_add_contact">Add to contacts</string>
     <string name="main_menu_pin">Pin to top</string>
     <string name="main_menu_unpin">Unpin</string>
+    <string name="main_menu_remind">Remind me</string>
+    <string name="reminder_title">Remind me</string>
+    <string name="reminder_in_one_hour">In 1 hour</string>
+    <string name="reminder_in_three_hours">In 3 hours</string>
+    <string name="reminder_this_evening">This evening (%s)</string>
+    <string name="reminder_tomorrow_morning">Tomorrow morning (%s)</string>
+    <string name="reminder_pick">Pick a date and time…</string>
+    <string name="reminder_remove">Remove reminder</string>
+    <string name="reminder_in_past">Pick a time that hasn\'t passed yet</string>
+    <string name="notification_reminder_title">Reminder: %s</string>
     <string name="main_menu_read">Mark read</string>
     <string name="main_menu_unread">Mark unread</string>
     <string name="main_menu_block">Block</string>
@@ -109,6 +119,7 @@
     <string name="drawer_inbox">Inbox</string>
     <string name="drawer_archived">Archived</string>
     <string name="drawer_updates">Updates</string>
+    <string name="drawer_mass_text">Mass text</string>
     <string name="drawer_scheduled">Scheduled</string>
     <string name="drawer_blocking">Blocking</string>
     <string name="drawer_more">More</string>
@@ -314,6 +325,22 @@
     <string name="settings_vibration_title">Vibration</string>
     <string name="settings_ringtone_title">Sound</string>
     <string name="settings_ringtone_none">None</string>
+    <string name="settings_category_quiet_hours">Quiet hours</string>
+    <string name="settings_quiet_hours_title">Quiet hours</string>
+    <string name="settings_quiet_hours_summary">Notifications arrive silently from %1$s to %2$s, except conversations set to ring</string>
+    <string name="settings_quiet_hours_start_title">Start</string>
+    <string name="settings_quiet_hours_end_title">End</string>
+    <string name="settings_quiet_hours_bypass_title">Ring during quiet hours</string>
+    <string name="settings_quiet_hours_bypass_summary">This conversation still makes sound during quiet hours</string>
+    <string name="settings_category_verification_codes">Verification codes</string>
+    <string name="settings_verification_code_copy_title">Copy code button</string>
+    <string name="settings_verification_code_copy_summary">Adds a button to copy the code from a verification text\'s notification</string>
+    <string name="settings_verification_code_cleanup_title">Delete old codes</string>
+    <string name="settings_verification_code_cleanup_summary">Deletes verification texts from senders not in your contacts once they\'re a day old</string>
+    <string name="verification_code_clip_label">Verification code</string>
+    <string name="verification_code_copied">Code copied</string>
+    <string name="notification_action_copy_code">Copy code</string>
+    <string name="notification_action_copy_code_value">Copy %s</string>
     <string name="settings_qkreply_title">QK Reply</string>
     <string name="settings_qkreply_summary">Popup for new messages</string>
     <string name="settings_qkreply_tap_dismiss_title">Tap to dismiss</string>
@@ -542,6 +569,34 @@
         <item quantity="one">New message</item>
         <item quantity="other">%s new messages</item>
     </plurals>
+    <string name="title_mass_text">Mass text</string>
+    <string name="mass_text_message_title">Message</string>
+    <string name="mass_text_message_hint">Write your message</string>
+    <string name="mass_text_insert_first_name">Insert first name</string>
+    <string name="mass_text_preview">%1$s gets: %2$s</string>
+    <string name="mass_text_recipients_title">Recipients</string>
+    <plurals name="mass_text_recipients">
+        <item quantity="one">%d recipient</item>
+        <item quantity="other">%d recipients</item>
+    </plurals>
+    <string name="mass_text_recipients_empty">Each person gets their own text, in their own conversation, so nobody sees who else it went to and replies come back to you alone.</string>
+    <string name="mass_text_add_recipients">Add people or a group</string>
+    <string name="mass_text_remove_cd">Remove</string>
+    <string name="mass_text_send">Send</string>
+    <plurals name="mass_text_confirm_title">
+        <item quantity="one">Send %d text?</item>
+        <item quantity="other">Send %d separate texts?</item>
+    </plurals>
+    <string name="mass_text_confirm_message">They go out a couple of seconds apart, and keep sending if you leave this screen. If Android asks whether to allow sending a lot of messages, say yes.</string>
+    <plurals name="mass_text_sending">
+        <item quantity="one">Sending to %d person…</item>
+        <item quantity="other">Sending to %d people…</item>
+    </plurals>
+    <plurals name="notification_mass_text_sent">
+        <item quantity="one">Mass text sent to %d person</item>
+        <item quantity="other">Mass text sent to %d people</item>
+    </plurals>
+    <string name="notification_mass_text_sent_text">Each one is in its own conversation</string>
     <string name="notification_message_failed_title">Message not sent</string>
     <string name="notification_message_failed_text">The message to %s failed to send</string>
     <string name="notification_foreground_worker_title">Receiving message</string>

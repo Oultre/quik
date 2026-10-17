@@ -189,6 +189,17 @@ open class MessageRepositoryImpl @Inject constructor(
             .sort("date", Sort.DESCENDING)
             .findAll()
 
+    override fun getReceivedSms(from: Long, to: Long): List<Message> =
+        Realm.getDefaultInstance().use { realm ->
+            realm.refresh()
+            realm.where(Message::class.java)
+                .equalTo("type", TYPE_SMS)
+                .`in`("boxId", arrayOf(Sms.MESSAGE_TYPE_INBOX, Sms.MESSAGE_TYPE_ALL))
+                .between("date", from, to)
+                .findAll()
+                .let(realm::copyFromRealm)
+        }
+
     override fun getUnreadCount() =
         Realm.getDefaultInstance().use { realm ->
             realm.refresh()
@@ -390,7 +401,7 @@ open class MessageRepositoryImpl @Inject constructor(
         threadIds.takeIf { it.isNotEmpty() }
             ?.let {
                 Realm.getDefaultInstance()?.use { realm ->
-                    realm.where(Message::class.java)
+                    val messages = realm.where(Message::class.java)
                         .anyOf("threadId", threadIds.toLongArray())
                         .beginGroup()
                         .equalTo("read", false)
@@ -398,11 +409,17 @@ open class MessageRepositoryImpl @Inject constructor(
                         .equalTo("seen", false)
                         .endGroup()
                         .findAll()
-                        .let { messages ->
-                            realm.executeTransaction {
-                                messages.forEach { it.seen = true; it.read = true }
-                            }
-                        }
+
+                    // Backchannel: a fired reminder holds its conversation at the top until it's read
+                    val reminded = realm.where(Conversation::class.java)
+                        .anyOf("id", threadIds.toLongArray())
+                        .equalTo("reminded", true)
+                        .findAll()
+
+                    realm.executeTransaction {
+                        messages.forEach { it.seen = true; it.read = true }
+                        reminded.forEach { it.reminded = false }
+                    }
                 }.run {
                     telephonyMarkSeenRead(seen = true, read = true, threadIds = threadIds)
                 }

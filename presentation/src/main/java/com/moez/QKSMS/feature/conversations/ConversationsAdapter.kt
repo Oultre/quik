@@ -130,6 +130,7 @@ class ConversationsAdapter @Inject constructor(
         binding.scheduled.isVisible = conversation.id in hasScheduledConversation
 
         binding.pinned.isVisible = conversation.pinned
+        binding.reminder.isVisible = conversation.reminderAt > 0 || conversation.reminded
         binding.unread.setTint(theme)
     }
 

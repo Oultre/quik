@@ -138,6 +138,17 @@ class Preferences @Inject constructor(
 
     val autoDeduplicate = rxPrefs.getBoolean("autoDeduplicateMessages", false)
 
+    // Backchannel: verification codes get a Copy button on their notification, and are deleted
+    // once they're a day old
+    val verificationCodeCopy = rxPrefs.getBoolean("verificationCodeCopy", true)
+    val verificationCodeCleanup = rxPrefs.getBoolean("verificationCodeCleanup", true)
+
+    // Backchannel: notifications arrive silently between these times, stored as minutes after
+    // midnight. The window may wrap past midnight
+    val quietHours = rxPrefs.getBoolean("quietHours", false)
+    val quietHoursStart = rxPrefs.getInteger("quietHoursStart", 22 * 60)
+    val quietHoursEnd = rxPrefs.getInteger("quietHoursEnd", 7 * 60)
+
     init {
         // Migrate from old night mode preference to new one, now that we support android Q night mode
         val nightModeSummary = rxPrefs.getInteger("nightModeSummary")
@@ -192,6 +203,25 @@ class Preferences @Inject constructor(
     // moved into the hidden box, so unhiding can restore it (auto-mute on hide).
     fun notificationsPreIncognito(threadId: Long): Preference<Boolean> =
         rxPrefs.getBoolean("notifications_pre_incognito_$threadId", true)
+
+    // Backchannel: lets a conversation keep ringing during quiet hours
+    fun quietHoursBypass(threadId: Long): Preference<Boolean> =
+        rxPrefs.getBoolean("quiet_hours_bypass_$threadId", false)
+
+    /**
+     * Backchannel: whether notifications for this conversation should arrive silently right now
+     */
+    fun isQuiet(threadId: Long, minuteOfDay: Int): Boolean {
+        if (!quietHours.get() || quietHoursBypass(threadId).get()) return false
+
+        val start = quietHoursStart.get()
+        val end = quietHoursEnd.get()
+        return when {
+            start == end -> false
+            start < end -> minuteOfDay in start until end
+            else -> minuteOfDay >= start || minuteOfDay < end // overnight
+        }
+    }
 
     fun notificationPreviews(threadId: Long = 0): Preference<Int> {
         val default = rxPrefs.getInteger("notification_previews", 0)

@@ -35,5 +35,11 @@ data class NotificationPrefsState(
     val vibrationEnabled: Boolean = true,
     val ringtoneName: String = "",
     val qkReplyEnabled: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.N,
-    val qkReplyTapDismiss: Boolean = true
+    val qkReplyTapDismiss: Boolean = true,
+    val quietHoursEnabled: Boolean = false,
+    val quietHoursStart: String = "",
+    val quietHoursEnd: String = "",
+    val quietHoursBypass: Boolean = false,
+    val verificationCodeCopy: Boolean = true,
+    val verificationCodeCleanup: Boolean = true
 )

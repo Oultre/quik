@@ -42,11 +42,13 @@ import dev.octoshrimpy.quik.common.util.extensions.fromRecipient
 import dev.octoshrimpy.quik.common.util.extensions.toPerson
 import dev.octoshrimpy.quik.extensions.isImage
 import dev.octoshrimpy.quik.feature.compose.ComposeActivity
+import dev.octoshrimpy.quik.feature.main.MainActivity
 import dev.octoshrimpy.quik.feature.qkreply.QkReplyActivity
 import dev.octoshrimpy.quik.manager.PermissionManager
 import dev.octoshrimpy.quik.manager.ShortcutManager
 import dev.octoshrimpy.quik.mapper.CursorToPartImpl
 import dev.octoshrimpy.quik.receiver.BlockThreadReceiver
+import dev.octoshrimpy.quik.receiver.CopyCodeReceiver
 import dev.octoshrimpy.quik.receiver.DeleteMessagesReceiver
 import dev.octoshrimpy.quik.receiver.MessageMarkReceiver
 import dev.octoshrimpy.quik.receiver.RemoteMessagingReceiver
@@ -57,8 +59,10 @@ import dev.octoshrimpy.quik.repository.MessageRepository
 import dev.octoshrimpy.quik.util.GlideApp
 import dev.octoshrimpy.quik.util.PhoneNumberUtils
 import dev.octoshrimpy.quik.util.Preferences
+import dev.octoshrimpy.quik.util.VerificationCodes
 import dev.octoshrimpy.quik.util.tryOrNull
 import timber.log.Timber
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.net.toUri
@@ -85,6 +89,11 @@ class NotificationManagerImpl @Inject constructor(
         val MARK_TYPE_COUNT = MessageMarkReceiver.MarkType.values().size
 
         val VIBRATE_PATTERN = longArrayOf(0, 200, 0, 200)
+
+        // Backchannel: a reminder gets its own notification, so it doesn't replace message ones
+        const val REMINDER_ID_OFFSET = 200000
+
+        const val MASS_TEXT_ID = 300000
     }
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -137,6 +146,7 @@ class NotificationManagerImpl @Inject constructor(
         if (messages.isEmpty()) {
             notificationManager.cancel(threadId.toInt())
             notificationManager.cancel(threadId.toInt() + 100000)
+            notificationManager.cancel(threadId.toInt() + REMINDER_ID_OFFSET)
             return
         }
 
@@ -185,8 +195,12 @@ class NotificationManagerImpl @Inject constructor(
                 .setWhen(conversation.lastMessage?.date ?: System.currentTimeMillis())
                 .setVibrate(if (prefs.vibration(threadId).get()) VIBRATE_PATTERN else longArrayOf(0))
 
-        // if preference set to silence notifications if no recipients in contacts
-        if (prefs.silentNotContact.get() && run {
+        val now = Calendar.getInstance()
+        val quiet = prefs.isQuiet(threadId, now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE))
+
+        // silence during quiet hours, or if preference set to silence notifications if no
+        // recipients in contacts
+        if (quiet || prefs.silentNotContact.get() && run {
             val msgRecipientNumbers = conversation.recipients.map { it.address }
 
             // true if any message recipients are in device's contacts
@@ -278,6 +292,14 @@ class NotificationManagerImpl @Inject constructor(
             notification.addPerson(recipient.toPerson(context, colors))
         }
 
+        // Backchannel: a verification code gets a Copy button. It goes first, since only the first
+        // three actions are shown
+        if (prefs.verificationCodeCopy.get()) {
+            messages.lastOrNull { message -> !message.isMe() }
+                ?.let { message -> VerificationCodes.find(message.getText()) }
+                ?.let { code -> notification.addAction(getCopyCodeAction(threadId, code)) }
+        }
+
         // Add the action buttons
         val actionLabels = context.resources.getStringArray(R.array.notification_actions)
         listOf(prefs.notifAction1, prefs.notifAction2, prefs.notifAction3)
@@ -366,7 +388,7 @@ class NotificationManagerImpl @Inject constructor(
                 }
                 .forEach { notification.addAction(it) }
 
-        if (prefs.qkreply.get()) {
+        if (prefs.qkreply.get() && !quiet) {
             notification.priority = NotificationCompat.PRIORITY_DEFAULT
 
             val intent = Intent(context, QkReplyActivity::class.java)
@@ -380,7 +402,7 @@ class NotificationManagerImpl @Inject constructor(
         notificationManager.notify(threadId.toInt(), notification.build())
 
         // Wake screen
-        if (prefs.wakeScreen(threadId).get()) {
+        if (prefs.wakeScreen(threadId).get() && !quiet) {
             context.getSystemService<PowerManager>()?.let { powerManager ->
                 if (!powerManager.isInteractive) {
                     val flags = PowerManager.SCREEN_DIM_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP
@@ -446,6 +468,83 @@ class NotificationManagerImpl @Inject constructor(
                 .setVibrate(if (prefs.vibration(threadId).get()) VIBRATE_PATTERN else longArrayOf(0))
 
         notificationManager.notify(threadId.toInt() + 100000, notification.build())
+    }
+
+    override fun notifyReminder(threadId: Long) {
+        if (!permissions.hasNotifications()) {
+            Timber.w("Cannot show reminder because we don't have the notification permission")
+            return
+        }
+
+        val conversation = conversationRepo.getConversation(threadId) ?: return
+
+        val contentIntent = Intent(context, ComposeActivity::class.java).putExtra("threadId", threadId)
+        val contentPI = TaskStackBuilder.create(context)
+            .addParentStack(ComposeActivity::class.java)
+            .addNextIntent(contentIntent)
+            .getPendingIntent(threadId.toInt() + REMINDER_ID_OFFSET,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        // The reminder goes off at a time the user picked, so unlike messages it ignores quiet
+        // hours. It does respect how much a notification may show
+        val text = when (prefs.notificationPreviews(threadId).get()) {
+            Preferences.NOTIFICATION_PREVIEWS_ALL -> conversation.snippet
+            else -> null
+        }
+
+        val notification = NotificationCompat.Builder(context, getChannelIdForNotification(threadId))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSmallIcon(R.drawable.ic_alarm_black_24dp)
+            .setColor(colors.theme(conversation.recipients.firstOrNull()).theme)
+            .setContentTitle(context.getString(R.string.notification_reminder_title, conversation.getTitle()))
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setContentIntent(contentPI)
+            .setSound(prefs.ringtone(threadId).get().takeIf { it.isNotEmpty() }?.let(Uri::parse))
+            .setVibrate(if (prefs.vibration(threadId).get()) VIBRATE_PATTERN else longArrayOf(0))
+            .setLights(Color.WHITE, 500, 2000)
+
+        notificationManager.notify(threadId.toInt() + REMINDER_ID_OFFSET, notification.build())
+    }
+
+    override fun notifyMassTextSent(recipientCount: Int) {
+        if (!permissions.hasNotifications()) return
+
+        val contentPI = PendingIntent.getActivity(context, MASS_TEXT_ID,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        // Low importance: it confirms something the user just did, so it shouldn't ring
+        val notification = NotificationCompat.Builder(context, RECEIVING_WORKER_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(colors.theme().theme)
+            .setContentTitle(context.resources.getQuantityString(
+                R.plurals.notification_mass_text_sent, recipientCount, recipientCount))
+            .setContentText(context.getString(R.string.notification_mass_text_sent_text))
+            .setContentIntent(contentPI)
+            .setAutoCancel(true)
+            .setSilent(true)
+
+        notificationManager.notify(MASS_TEXT_ID, notification.build())
+    }
+
+    private fun getCopyCodeAction(threadId: Long, code: String): NotificationCompat.Action {
+        val intent = Intent(context, CopyCodeReceiver::class.java)
+            .putExtra(CopyCodeReceiver.EXTRA_CODE, code)
+            .putExtra(CopyCodeReceiver.EXTRA_THREAD_ID, threadId)
+        val pi = PendingIntent.getBroadcast(context, threadId.toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        // The button reads the code out, so it only does that where the message text is shown too
+        val title = when (prefs.notificationPreviews(threadId).get()) {
+            Preferences.NOTIFICATION_PREVIEWS_ALL -> context.getString(R.string.notification_action_copy_code_value, code)
+            else -> context.getString(R.string.notification_action_copy_code)
+        }
+
+        return NotificationCompat.Action.Builder(R.drawable.ic_content_copy_black_24dp, title, pi)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_NONE)
+            .build()
     }
 
     private fun getReplyAction(threadId: Long): NotificationCompat.Action {

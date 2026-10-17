@@ -51,6 +51,9 @@ class ContactsActivity : QkThemedActivity(), ContactsContract {
     companion object {
         const val SHARING_KEY = "sharing"
         const val CHIPS_KEY = "chips"
+
+        // Backchannel: go back to whatever opened the picker, instead of to the inbox
+        const val RETURN_ON_BACK_KEY = "returnOnBack"
     }
 
     private lateinit var binding: ContactsActivityBinding
@@ -94,7 +97,10 @@ class ContactsActivity : QkThemedActivity(), ContactsContract {
 
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                navigator.showMainActivity()
+                when (intent.getBooleanExtra(RETURN_ON_BACK_KEY, false)) {
+                    true -> finish()
+                    false -> navigator.showMainActivity()
+                }
             }
         }
         onBackPressedDispatcher.addCallback(this, callback)

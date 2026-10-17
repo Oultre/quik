@@ -19,11 +19,13 @@
 package dev.octoshrimpy.quik.feature.notificationprefs
 
 import android.app.Activity
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
@@ -55,6 +57,8 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
     override val previewModeSelectedIntent by lazy { previewModeDialog.adapter.menuItemClicks }
     override val ringtoneSelectedIntent: Subject<String> = PublishSubject.create()
     override val actionsSelectedIntent by lazy { actionsDialog.adapter.menuItemClicks }
+    override val quietHoursStartSelectedIntent: Subject<Int> = PublishSubject.create()
+    override val quietHoursEndSelectedIntent: Subject<Int> = PublishSubject.create()
 
     private val viewModel by lazy {
         ViewModelProviders.of(this, viewModelFactory)[NotificationPrefsViewModel::class.java]
@@ -122,6 +126,32 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
         binding.qkreplyTapDismiss.isVisible = state.threadId == 0L
         binding.qkreplyTapDismiss.isEnabled = state.qkReplyEnabled
         binding.qkreplyTapDismiss.checkbox?.isChecked = state.qkReplyTapDismiss
+
+        // Backchannel: quiet hours and verification codes are app-wide; a conversation's own screen
+        // only gets to opt out of quiet hours
+        val global = state.threadId == 0L
+        binding.quietHoursBypass.isVisible = !global
+        binding.quietHoursBypass.checkbox?.isChecked = state.quietHoursBypass
+
+        binding.quietHoursDivider.isVisible = global
+        binding.quietHoursTitle.isVisible = global
+        binding.quietHours.isVisible = global
+        binding.quietHours.checkbox?.isChecked = state.quietHoursEnabled
+        binding.quietHours.summary = getString(R.string.settings_quiet_hours_summary,
+                state.quietHoursStart, state.quietHoursEnd)
+        binding.quietHoursStart.isVisible = global
+        binding.quietHoursStart.isEnabled = state.quietHoursEnabled
+        binding.quietHoursStart.summary = state.quietHoursStart
+        binding.quietHoursEnd.isVisible = global
+        binding.quietHoursEnd.isEnabled = state.quietHoursEnabled
+        binding.quietHoursEnd.summary = state.quietHoursEnd
+
+        binding.codesDivider.isVisible = global
+        binding.codesTitle.isVisible = global
+        binding.verificationCodeCopy.isVisible = global
+        binding.verificationCodeCopy.checkbox?.isChecked = state.verificationCodeCopy
+        binding.verificationCodeCleanup.isVisible = global
+        binding.verificationCodeCleanup.checkbox?.isChecked = state.verificationCodeCleanup
     }
 
     override fun showPreviewModeDialog() = previewModeDialog.show(this)
@@ -138,6 +168,18 @@ class NotificationPrefsActivity : QkThemedActivity(), NotificationPrefsView {
     override fun showActionDialog(selected: Int) {
         actionsDialog.adapter.selectedItem = selected
         actionsDialog.show(this)
+    }
+
+    override fun showQuietHoursStartPicker(minuteOfDay: Int) =
+        showTimePicker(minuteOfDay, quietHoursStartSelectedIntent)
+
+    override fun showQuietHoursEndPicker(minuteOfDay: Int) =
+        showTimePicker(minuteOfDay, quietHoursEndSelectedIntent)
+
+    private fun showTimePicker(minuteOfDay: Int, selected: Subject<Int>) {
+        TimePickerDialog(this, { _, hour, minute ->
+            selected.onNext(hour * 60 + minute)
+        }, minuteOfDay / 60, minuteOfDay % 60, DateFormat.is24HourFormat(this)).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

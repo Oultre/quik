@@ -60,6 +60,11 @@ interface MessageRepository {
 
     fun getLastIncomingMessage(threadId: Long): RealmResults<Message>
 
+    /**
+     * Backchannel: unmanaged copies of the SMS received between [from] and [to]
+     */
+    fun getReceivedSms(from: Long, to: Long): List<Message>
+
     fun getUnreadCount(): Long
 
     fun getPart(id: Long): MmsPart?

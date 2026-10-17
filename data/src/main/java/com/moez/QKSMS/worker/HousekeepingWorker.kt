@@ -26,8 +26,13 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.moez.QKSMS.manager.MediaRecorderManager
+import dev.octoshrimpy.quik.repository.ConversationRepository
+import dev.octoshrimpy.quik.repository.MessageRepository
 import dev.octoshrimpy.quik.repository.ScheduledMessageRepository
 import dev.octoshrimpy.quik.util.Constants
+import dev.octoshrimpy.quik.util.Preferences
+import dev.octoshrimpy.quik.util.VerificationCodes
+import timber.log.Timber
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -67,6 +72,9 @@ class HousekeepingWorker(appContext: Context, workerParams: WorkerParameters)
     }
 
     @Inject lateinit var scheduledMessageRepository: ScheduledMessageRepository
+    @Inject lateinit var messageRepo: MessageRepository
+    @Inject lateinit var conversationRepo: ConversationRepository
+    @Inject lateinit var prefs: Preferences
 
     override fun doWork(): Result {
         val twoHoursAgo = (System.currentTimeMillis() - (2 * 60 * 60 * 1000))
@@ -79,7 +87,35 @@ class HousekeepingWorker(appContext: Context, workerParams: WorkerParameters)
 
         removeOrphanedComposeDelayCancelledAttachments(twoHoursAgo)
 
+        removeOldVerificationCodes()
+
         return Result.success()
+    }
+
+    /**
+     * Backchannel: deletes verification codes once they're a day old. Only texts from senders that
+     * aren't saved contacts, so a friend's "the gate code is 4521" is never touched, and never a
+     * locked message
+     */
+    private fun removeOldVerificationCodes() {
+        if (!prefs.verificationCodeCleanup.get()) return
+
+        // This runs about daily, so a month of history is plenty of overlap without scanning
+        // everything every time
+        val dayAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
+        val codes = messageRepo.getReceivedSms(dayAgo - TimeUnit.DAYS.toMillis(30), dayAgo)
+            .filter { message -> !message.locked && VerificationCodes.find(message.body) != null }
+            .groupBy { message -> message.threadId }
+            .filterKeys { threadId ->
+                val sender = conversationRepo.getConversation(threadId)?.recipients?.singleOrNull()
+                sender != null && sender.contact == null
+            }
+
+        if (codes.isEmpty()) return
+
+        Timber.v("deleting ${codes.values.sumOf { it.size }} old verification codes")
+        messageRepo.deleteMessages(codes.values.flatten().map { message -> message.id })
+        conversationRepo.updateConversations(codes.keys)
     }
 
     private fun removeOrphanedScheduledMessageAttachmentFiles() {

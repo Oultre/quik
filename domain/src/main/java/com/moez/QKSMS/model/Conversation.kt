@@ -31,6 +31,10 @@ open class Conversation(
     @Index var incognito: Boolean = false,
     // Backchannel: bundled = grouped into the combined "Updates" box (delivery/promo/etc.)
     @Index var bundled: Boolean = false,
+    // Backchannel: "Remind me". reminderAt is when it's due (0 for none). Once it goes off,
+    // reminded holds the conversation at the top of the inbox until it's read
+    var reminderAt: Long = 0,
+    @Index var reminded: Boolean = false,
     var recipients: RealmList<Recipient> = RealmList(),
     var lastMessage: Message? = null,
     var draft: String = "",
