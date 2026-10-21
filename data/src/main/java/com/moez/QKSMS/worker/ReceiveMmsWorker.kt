@@ -32,6 +32,7 @@ import com.android.mms.service_alt.DownloadRequest
 import com.android.mms.service_alt.MmsConfig
 import com.android.mms.service_alt.MmsConfig.Overridden
 import com.android.mms.transaction.DownloadManager
+import com.android.mms.transaction.PushReceiver
 import com.google.android.mms.pdu_alt.AcknowledgeInd
 import com.google.android.mms.pdu_alt.EncodedStringValue
 import com.google.android.mms.pdu_alt.NotificationInd
@@ -115,6 +116,11 @@ class ReceiveMmsWorker(appContext: Context, workerParams: WorkerParameters)
         Timber.v(filePath)
 
         val downloadFile = File(filePath)
+
+        // Backchannel: whether the message made it into the system's store. Anything short of that
+        // (an empty download, a response that isn't a message, an exception) used to end here with
+        // the message silently lost
+        var persisted = false
         try {
             // read file into a bytearray
             val mmsData = FileInputStream(downloadFile).use { inputStream ->
@@ -149,6 +155,7 @@ class ReceiveMmsWorker(appContext: Context, workerParams: WorkerParameters)
                 DownloadManager.finishDownload(locationUrl)
 
                 // if message was persisted ok
+                persisted = messageUri != null
                 if (messageUri != null) {
                     // Sync the message
                     val message = syncRepo.syncMessage(messageUri)
@@ -246,6 +253,16 @@ class ReceiveMmsWorker(appContext: Context, workerParams: WorkerParameters)
             Timber.e("mms receive worker exception: ${e.message}")
         } finally {
             downloadFile.delete()
+
+            // Backchannel: the carrier's notice for the message is still in the system's store, so
+            // it can be downloaded again. Release what marks it as already handled, then have the
+            // missed-message check retry it shortly
+            if (!persisted) {
+                Timber.w("mms download failed, will retry")
+                DownloadManager.finishDownload(locationUrl)
+                PushReceiver.forgetDownload(locationUrl)
+                MissedMessageWorker.runSoon(applicationContext)
+            }
         }
 
         Timber.v("finished")

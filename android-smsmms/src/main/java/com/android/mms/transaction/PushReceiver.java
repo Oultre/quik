@@ -56,6 +56,7 @@ import com.klinker.android.send_message.Settings;
 import com.klinker.android.send_message.SmsManagerFactory;
 import com.klinker.android.send_message.Utils;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -83,8 +84,19 @@ public class PushReceiver extends BroadcastReceiver {
 
     static final int COLUMN_CONTENT_LOCATION      = 0;
 
-    private static Set<String> downloadedUrls = new HashSet<String>();
+    // Synchronized: the push executor adds to it, and the receive worker removes from it
+    private static final Set<String> downloadedUrls = Collections.synchronizedSet(new HashSet<String>());
     private static final ExecutorService PUSH_RECEIVER_EXECUTOR = Executors.newSingleThreadExecutor();
+
+    /**
+     * Backchannel: lets a message whose download failed be downloaded again. Without this, a
+     * carrier re-sending the notification for it would be skipped as already handled.
+     */
+    public static void forgetDownload(String location) {
+        if (location != null) {
+            downloadedUrls.remove(location);
+        }
+    }
 
     private class ReceivePushTask extends AsyncTask<Intent,Void,Void> {
         private Context mContext;
