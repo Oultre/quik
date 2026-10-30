@@ -261,6 +261,12 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup"
                 tools:node="remove" />
+            <!-- Backchannel: this runs before QKApplication and would claim EmojiCompat first,
+                 leaving the bundled font unused and loading from a font provider instead -->
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
 
         <meta-data

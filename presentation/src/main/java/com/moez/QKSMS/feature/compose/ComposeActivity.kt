@@ -826,77 +826,12 @@ class ComposeActivity : QkThemedActivity(), ComposeView {
             .show()
     }
 
-    // Backchannel: scrollable emoji grid (opened by the "+" on the floating bar)
+    // Backchannel: every emoji, with categories and recents (opened by the "+" on the floating bar)
     override fun showReactionPicker(messageId: Long) {
-        val emojis = listOf(
-            "👍", "👎", "❤️", "😂", "😮", "😢",
-            "😡", "😄", "😁", "😊", "😍", "🥰",
-            "😘", "😎", "🤩", "🥳", "😅", "😆",
-            "🙂", "😉", "😌", "😔", "😞", "😤",
-            "😠", "😭", "😩", "😳", "🤔", "🤨",
-            "😬", "🙄", "😴", "🤯", "😱", "🥶",
-            "🤢", "🤮", "🤧", "😷", "🤒", "🤕",
-            "👏", "🙌", "🙏", "👋", "🤙", "🤝",
-            "💪", "👊", "✌️", "🤞", "👌", "🤟",
-            "💯", "🔥", "✅", "❌", "❗", "❓",
-            "⭐", "🎉", "🎊", "💥", "✨", "💢",
-            "💦", "💤", "🙈", "🙉", "🙊", "👀",
-            "💀", "🤖", "👻", "🎂", "🍺", "☕"
-        )
-
-        val density = resources.displayMetrics.density
-        fun px(dp: Int) = (dp * density).toInt()
-        val cols = 6
-
-        val grid = android.widget.GridLayout(this).apply {
-            columnCount = cols
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(px(8), px(8), px(8), px(8))
-        }
-
-        var dialog: AlertDialog? = null
-
-        emojis.forEachIndexed { i, label ->
-            val tv = android.widget.TextView(this).apply {
-                text = label
-                textSize = 24f
-                gravity = Gravity.CENTER
-                setPadding(px(4), px(12), px(4), px(12))
-                isClickable = true
-                setOnClickListener {
-                    dialog?.dismiss()
-                    reactionSelectedIntent.onNext(messageId to label)
-                    clearSelection()
-                }
-            }
-            // weighted columns so all 6 fit the dialog width (no clipping)
-            val lp = android.widget.GridLayout.LayoutParams().apply {
-                width = 0
-                height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                columnSpec = android.widget.GridLayout.spec(i % cols, 1f)
-                rowSpec = android.widget.GridLayout.spec(i / cols)
-            }
-            grid.addView(tv, lp)
-        }
-
-        // scrollable, capped to ~half the screen height
-        val scroll = android.widget.ScrollView(this).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                (resources.displayMetrics.heightPixels * 0.5f).toInt()
-            )
-            addView(grid)
-        }
-
-        dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.compose_react_title)
-            .setView(scroll)
-            .setNegativeButton(R.string.button_cancel, null)
-            .create()
-        dialog.show()
+        ReactionPicker(this) { emoji ->
+            reactionSelectedIntent.onNext(messageId to emoji)
+            clearSelection()
+        }.show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
